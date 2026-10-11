@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_12_090002) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_12_100100) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -26,6 +26,32 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_12_090002) do
     t.index ["symbol", "interval", "opened_at"], name: "index_candle_fingerprints_on_symbol_and_interval_and_opened_at", unique: true
     t.check_constraint "\"interval\"::text = ANY (ARRAY['1h'::character varying, '4h'::character varying]::text[])", name: "candle_fingerprint_interval"
     t.check_constraint "digest::text ~ '^[0-9a-f]{64}$'::text", name: "candle_fingerprint_digest"
+  end
+
+  create_table "candles", force: :cascade do |t|
+    t.bigint "provider_request_id", null: false
+    t.string "symbol", null: false
+    t.string "interval", null: false
+    t.datetime "opened_at", null: false
+    t.decimal "open", precision: 16, scale: 8, null: false
+    t.decimal "high", precision: 16, scale: 8, null: false
+    t.decimal "low", precision: 16, scale: 8, null: false
+    t.decimal "close", precision: 16, scale: 8, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["provider_request_id"], name: "index_candles_on_provider_request_id"
+    t.index ["symbol", "interval", "opened_at"], name: "index_candles_on_symbol_and_interval_and_opened_at", unique: true
+    t.check_constraint "\"interval\"::text = ANY (ARRAY['1h'::character varying, '4h'::character varying]::text[])", name: "candle_interval"
+    t.check_constraint "low > 0::numeric AND low <= LEAST(open, close) AND high >= GREATEST(open, close)", name: "candle_ohlc_consistent"
+  end
+
+  create_table "currency_pairs", force: :cascade do |t|
+    t.string "symbol", null: false
+    t.boolean "enabled", default: true, null: false
+    t.integer "position", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["symbol"], name: "index_currency_pairs_on_symbol", unique: true
   end
 
   create_table "data_quality_metrics", force: :cascade do |t|
@@ -90,6 +116,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_12_090002) do
   end
 
   add_foreign_key "candle_fingerprints", "provider_requests"
+  add_foreign_key "candles", "provider_requests"
   add_foreign_key "data_quality_metrics", "provider_requests"
   add_foreign_key "sessions", "users"
 end

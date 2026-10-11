@@ -162,3 +162,15 @@
 
   .drawer, .drawer::backdrop, .drawer-link, .reveal-pending, .button { transition: none; }
 }
+
+/* App navigation opens from the left, matching the desktop sidebar. */
+@layer components {
+  .drawer.drawer-left {
+    @apply right-auto left-0 border-r border-l-0;
+    transform: translateX(-100%);
+  }
+
+  .drawer.drawer-left.is-open {
+    transform: translateX(0);
+  }
+}

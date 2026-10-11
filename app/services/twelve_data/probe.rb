@@ -72,7 +72,9 @@ module TwelveData
             quality[:status] = "invalid"
           end
           fingerprints = quality.delete(:fingerprints) || {}
+          candles = quality.delete(:candles) || []
           reproduce(request, fingerprints, quality) unless quality[:status] == "invalid"
+          store_candles(request, candles) unless %w[invalid unreproducible].include?(quality[:status])
           request.create_data_quality_metric!(quality)
           # Long windows span holidays, so gaps are measured evidence, not a failed request.
           accepted = history ? %w[valid closed gaps] : %w[valid closed]
@@ -89,6 +91,14 @@ module TwelveData
         .where(provider_requests: { symbol: symbol, interval: interval, endpoint: "time_series" })
         .where.not(latest_closed_at: nil).order(latest_closed_at: :desc).limit(MarketHours::MAX_STEPS)
         .pluck(:latest_closed_at).find { |closed_at| !MarketHours.closed?(closed_at - duration) }
+    end
+
+    # Candles reaching here passed validation and the fingerprint check, so an
+    # existing row for the same open time already holds identical prices.
+    def store_candles(request, candles)
+      return if candles.empty?
+      rows = candles.map { |candle| candle.merge(provider_request_id: request.id, symbol: request.symbol, interval: request.interval) }
+      Candle.insert_all(rows, unique_by: %i[symbol interval opened_at])
     end
 
     def record_earliest(request, payload)

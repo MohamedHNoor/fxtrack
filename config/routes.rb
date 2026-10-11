@@ -14,6 +14,7 @@ Rails.application.routes.draw do
   patch "reset-password/:token", to: "passwords#update", as: :password
 
   get "dashboard", to: "dashboard#show", as: :dashboard
+  resources :markets, only: %i[ index show ]
 
   root "pages#home"
 end

@@ -181,3 +181,30 @@ RSpec.describe "Timestamp regression with legacy weekend closes" do
     expect(DataQualityMetric.last).to have_attributes(status: "closed", latest_closed_at: Time.utc(2026, 10, 9, 21))
   end
 end
+
+RSpec.describe "Candle storage" do
+  let(:client) { instance_double(TwelveData::Client) }
+
+  def response(hours, close: "1.2")
+    values = hours.map { |hour| { "datetime" => format("2026-10-12 %02d:00:00", hour), "open" => "1.1", "high" => "1.3", "low" => "1.0", "close" => close } }
+    payload = { "meta" => { "symbol" => "EUR/USD", "interval" => "1h", "type" => "Physical Currency" }, "values" => values }
+    TwelveData::Client::Response.new(status: "success", http_status: 200, credits_used: 1, credits_left: 7, error_code: nil, payload: payload, retry_after: nil)
+  end
+
+  def probe_at(time, reply)
+    allow(client).to receive(:time_series).and_return(reply)
+    TwelveData::Probe.new(client: client, clock: -> { time }).run(symbol: "EUR/USD", interval: "1h")
+  end
+
+  it "stores accepted closed candles once with exact decimal prices" do
+    probe_at(Time.utc(2026, 10, 12, 11, 30), response([ 9, 10, 11 ]))
+    probe_at(Time.utc(2026, 10, 12, 12, 30), response([ 9, 10, 11 ]))
+    expect(Candle.series("EUR/USD", "1h").pluck(:opened_at)).to eq([ Time.utc(2026, 10, 12, 9), Time.utc(2026, 10, 12, 10), Time.utc(2026, 10, 12, 11) ])
+    expect(Candle.first.close).to eq(BigDecimal("1.2"))
+  end
+
+  it "stores nothing from an unreproducible response" do
+    probe_at(Time.utc(2026, 10, 12, 11, 30), response([ 9, 10 ]))
+    expect { probe_at(Time.utc(2026, 10, 12, 12, 30), response([ 9, 10, 11 ], close: "1.25")) }.not_to change(Candle, :count)
+  end
+end

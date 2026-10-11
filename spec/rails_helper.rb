@@ -9,7 +9,10 @@ RSpec.configure do |config|
   config.use_transactional_fixtures = true
 
   # Rate limits live in the cache store, so each example starts with a clean count.
-  config.before { Rails.cache.clear }
+  config.before do
+    Rails.cache.clear
+    CurrencyPair.ensure_seeded!
+  end
 
   config.include ActiveSupport::Testing::TimeHelpers
   config.infer_spec_type_from_file_location!

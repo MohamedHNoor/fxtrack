@@ -18,10 +18,12 @@ namespace :twelve_data do
   task watch: :environment do
     $stdout.sync = true
     puts "twelve_data:watch started; stop with Ctrl-C"
+    last_status = nil
     loop do
       begin
-        result = TwelveData::Collection.new.run
-        puts({ at: Time.current.utc.iso8601, **result }.to_json) if result[:results].any? || result[:status] == "already_running"
+        result = MarketDataCollectionJob.perform_now
+        puts({ at: Time.current.utc.iso8601, **result }.to_json) if result[:results].any? || result[:status] != last_status
+        last_status = result[:status]
       rescue StandardError => error
         # Foreman stops bin/dev when a process exits, so log and keep observing.
         puts({ at: Time.current.utc.iso8601, status: "error", error: error.class.name }.to_json)
@@ -63,6 +65,12 @@ namespace :twelve_data do
     puts "M00 gate: #{result[:gate].upcase} (generated #{result[:generated_at].iso8601})"
     result[:checks].each { |name, item| puts format("  [%s] %-20s %s", item[:pass] ? "x" : " ", name, item[:detail]) }
     result[:combos].each { |row| puts row.to_json }
+  end
+
+  desc "Delete every stored candle (retention decision: within 30 days of cancelling)"
+  task delete_candles: :environment do
+    abort "Set CONFIRM=yes to delete all stored candles" unless ENV["CONFIRM"] == "yes"
+    puts "Deleted #{Candle.delete_all} candles"
   end
 
   desc "Report diagnostic coverage without credentials or price data"

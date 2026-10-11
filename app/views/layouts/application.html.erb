@@ -29,6 +29,6 @@
   </head>
 
   <body class="min-h-screen bg-[radial-gradient(ellipse_at_top_right,var(--color-glow),var(--color-canvas)_65%)]">
-    <%= yield %>
+    <%= content_for?(:app_body) ? yield(:app_body) : yield %>
   </body>
 </html>

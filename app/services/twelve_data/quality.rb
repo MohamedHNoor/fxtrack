@@ -39,6 +39,7 @@ module TwelveData
       attributes[:earliest_opened_at] = trading.first&.fetch(:opened_at)
       # Weekend candles are reported but never become reproducibility references.
       attributes[:fingerprints] = trading.to_h { |bar| [ bar[:opened_at], fingerprint(bar) ] }
+      attributes[:candles] = trading.map { |bar| { opened_at: bar[:opened_at], **%i[open high low close].zip(bar[:prices]).to_h } }
       expected = MarketHours.last_expected_open(now, duration)
       if trading.empty?
         return attributes.merge(status: "empty") if closure.empty?

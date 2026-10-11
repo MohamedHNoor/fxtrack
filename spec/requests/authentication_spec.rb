@@ -14,7 +14,7 @@ RSpec.describe "Owner authentication" do
     log_in
     expect(response).to redirect_to(dashboard_url)
     follow_redirect!
-    expect(response.body).to include("Signed in as", owner.email_address)
+    expect(response.body).to include("Trading dashboard", owner.email_address)
   end
 
   it "sets an HttpOnly, SameSite cookie that ends within thirty days" do

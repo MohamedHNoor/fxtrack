@@ -1,0 +1,49 @@
+<% content_for :title, "#{@pair.symbol} #{@interval.upcase} · FXTrack" %>
+
+<header class="motion-rise mb-6 flex flex-wrap items-end justify-between gap-4">
+  <div>
+    <%= link_to "← Markets", markets_path, class: "text-sm text-info hover:underline" %>
+    <h1 class="mt-2 text-2xl font-bold tracking-tight md:text-3xl"><%= @pair.symbol %> · <%= @interval == "1h" ? "1 hour" : "4 hours" %></h1>
+  </div>
+  <nav aria-label="Timeframe" class="flex gap-2">
+    <% ProviderRequest::INTERVALS.each do |interval| %>
+      <%= link_to interval.upcase, market_path(@pair, interval: interval), aria: { current: interval == @interval ? "page" : nil },
+            class: "button px-5 py-3 #{"button-primary" if interval == @interval}" %>
+    <% end %>
+  </nav>
+</header>
+
+<section class="card motion-rise" style="--delay: 100ms" aria-labelledby="chart-heading">
+  <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+    <h2 id="chart-heading" class="text-lg font-semibold">Completed candles</h2>
+    <%= state_badge(@snapshot) %>
+  </div>
+
+  <% if @candles.empty? %>
+    <div class="grid min-h-72 place-items-center rounded-lg border border-dashed border-line p-8 text-center">
+      <div>
+        <p class="font-semibold">No candles stored yet</p>
+        <p class="mt-2 max-w-md text-sm text-muted">Candles appear after the next collection cycle while you are logged in, or after a history window is measured.</p>
+      </div>
+    </div>
+  <% else %>
+    <div class="h-[360px] w-full md:h-[480px]" role="img"
+         aria-label="<%= "#{@pair.symbol} #{@interval.upcase} candlestick chart, #{@candles.size} completed candles to #{owner_time(@candles.last.closed_at)}" %>"
+         data-controller="candlestick-chart"
+         data-candlestick-chart-series-value="<%= chart_series(@candles).to_json %>"
+         data-candlestick-chart-precision-value="<%= price_decimals(@pair.symbol) %>"></div>
+  <% end %>
+
+  <dl class="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
+    <% [["Latest close", format_price(@pair.symbol, @snapshot.latest&.close)],
+        ["Change", @snapshot.change ? "#{format_price(@pair.symbol, @snapshot.change)} (#{number_to_percentage(@snapshot.change_percent, precision: 2)})" : "None"],
+        ["Last closed", owner_time(@snapshot.latest&.closed_at)],
+        ["Candles shown", @candles.size.to_s]].each do |label, value| %>
+      <div class="rounded-lg border border-line bg-raised p-4">
+        <dt class="text-xs text-muted"><%= label %></dt>
+        <dd class="mt-2 font-semibold tabular-nums <%= change_class(@snapshot.change) if label == "Change" %>"><%= value %></dd>
+      </div>
+    <% end %>
+  </dl>
+  <p class="mt-4 text-xs text-faint">Times in New Zealand time. Twelve Data composite prices can differ from your broker's executable bid and ask. Weekend candles are excluded under the New York 17:00 closure rule.</p>
+</section>

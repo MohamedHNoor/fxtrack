@@ -1,0 +1,64 @@
+<% content_for :head do %><meta name="robots" content="noindex"><% end %>
+<% content_for :app_body do %>
+  <% nav = [["Dashboard", dashboard_path], ["Markets", markets_path]] %>
+  <aside class="fixed inset-y-0 left-0 z-20 hidden w-[220px] flex-col border-r border-line bg-navy px-4 py-8 shadow-lg shadow-black/40 md:flex">
+    <%= link_to dashboard_path, class: "block w-[150px]", aria: { label: "FXTrack dashboard" } do %>
+      <%= image_tag "fxtrack-logo-dark.svg", alt: "FXTrack", width: 340, height: 110, class: "h-auto w-full" %>
+    <% end %>
+    <nav aria-label="Main" class="mt-12 grid gap-2">
+      <% nav.each do |label, path| %>
+        <%= link_to label, path, aria: { current: (current_page?(path) || request.path.start_with?("#{path}/")) ? "page" : nil },
+              class: "rounded-lg border-l-3 border-transparent px-4 py-3 text-muted hover:border-info hover:bg-glow hover:text-fg aria-[current=page]:border-info aria-[current=page]:bg-glow aria-[current=page]:text-fg" %>
+      <% end %>
+    </nav>
+    <div class="mt-auto grid gap-3 border-t border-line pt-6 text-sm">
+      <span class="truncate text-muted" title="<%= Current.user.email_address %>"><%= Current.user.email_address %></span>
+      <%= button_to "Log out", logout_path, method: :delete, class: "button w-full cursor-pointer py-3" %>
+    </div>
+  </aside>
+
+  <header class="sticky top-0 z-10 flex items-center justify-between border-b border-line bg-navy px-4 py-3 md:hidden" data-controller="nav-menu">
+    <button type="button" class="button px-3 py-3" aria-haspopup="dialog" aria-expanded="false" aria-controls="app-menu"
+            data-nav-menu-target="button" data-action="nav-menu#open">
+      <span class="sr-only">Open navigation</span>
+      <svg aria-hidden="true" viewBox="0 0 24 24" class="size-5 fill-none stroke-current stroke-2"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+    </button>
+    <%= link_to dashboard_path, class: "block w-[130px]", aria: { label: "FXTrack dashboard" } do %>
+      <%= image_tag "fxtrack-logo-dark.svg", alt: "FXTrack", width: 340, height: 110, class: "h-auto w-full" %>
+    <% end %>
+    <span class="w-[46px]" aria-hidden="true"></span>
+
+    <dialog id="app-menu" aria-label="Navigation" class="drawer drawer-left" data-nav-menu-target="dialog"
+            data-action="cancel->nav-menu#cancel click->nav-menu#closeOnBackdrop">
+      <div class="flex h-full flex-col p-6">
+        <div class="mb-8 flex items-center justify-between">
+          <%= image_tag "fxtrack-logo-dark.svg", alt: "FXTrack", width: 340, height: 110, class: "h-auto w-[150px]" %>
+          <button type="button" class="button px-3 py-3" data-action="nav-menu#close">
+            <span class="sr-only">Close navigation</span>
+            <svg aria-hidden="true" viewBox="0 0 24 24" class="size-5 fill-none stroke-current stroke-2"><path d="M6 6l12 12M18 6L6 18"/></svg>
+          </button>
+        </div>
+        <nav aria-label="Mobile" class="grid gap-1">
+          <% nav.each_with_index do |(label, path), index| %>
+            <%= link_to label, path, style: "--delay: #{120 + index * 60}ms", data: { action: "nav-menu#close" },
+                  class: "drawer-link rounded-lg border-l-3 border-transparent px-4 py-4 text-lg text-muted hover:border-info hover:bg-glow hover:text-fg" %>
+          <% end %>
+        </nav>
+        <div class="mt-auto grid gap-3 text-sm">
+          <span class="truncate text-muted"><%= Current.user.email_address %></span>
+          <%= button_to "Log out", logout_path, method: :delete, class: "button w-full cursor-pointer" %>
+        </div>
+      </div>
+    </dialog>
+  </header>
+
+  <main class="px-4 py-6 md:ml-[220px] md:px-10 md:py-10">
+    <div class="mx-auto max-w-content">
+      <% if notice %>
+        <p role="status" class="mb-6 rounded-lg border border-positive/40 bg-positive-bg/40 px-4 py-3 text-sm"><%= notice %></p>
+      <% end %>
+      <%= yield %>
+    </div>
+  </main>
+<% end %>
+<%= render template: "layouts/application" %>

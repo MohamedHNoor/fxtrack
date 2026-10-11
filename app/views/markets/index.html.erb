@@ -1,0 +1,9 @@
+<% content_for :title, "Markets · FXTrack" %>
+
+<div data-controller="reveal">
+  <header class="motion-rise mb-8">
+    <h1 class="text-2xl font-bold tracking-tight md:text-3xl">Markets</h1>
+    <p class="mt-1 text-muted">Completed H1 and H4 candles for your selected pairs.</p>
+  </header>
+  <%= render "markets/watchlist", pairs: @pairs, snapshots: @snapshots %>
+</div>
