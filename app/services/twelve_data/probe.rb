@@ -71,7 +71,7 @@ module TwelveData
           fingerprints = quality.delete(:fingerprints) || {}
           reproduce(request, fingerprints, quality) unless quality[:status] == "invalid"
           request.create_data_quality_metric!(quality)
-          request.update!(status: "invalid_data", error_code: "invalid_response") unless quality[:status] == "valid"
+          request.update!(status: "invalid_data", error_code: "invalid_response") unless %w[valid closed].include?(quality[:status])
         end
       end
     end

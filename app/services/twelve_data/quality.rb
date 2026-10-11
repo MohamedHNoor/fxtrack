@@ -13,7 +13,7 @@ module TwelveData
     def evaluate(payload, symbol:, interval:)
       duration = DURATIONS.fetch(interval)
       now = @clock.call.utc
-      attributes = { evaluated_at: now, status: "invalid", closed_count: 0, incomplete_count: 0, duplicate_count: 0, gap_count: 0 }
+      attributes = { evaluated_at: now, status: "invalid", closed_count: 0, closure_count: 0, incomplete_count: 0, duplicate_count: 0, gap_count: 0 }
       meta = payload["meta"]
       return attributes unless meta.is_a?(Hash) && meta["symbol"] == symbol && meta["interval"] == interval && meta["type"] == "Physical Currency"
       values = payload["values"]
@@ -27,18 +27,31 @@ module TwelveData
       grouped = bars.group_by { |bar| bar[:opened_at] }
       return attributes if grouped.values.any? { |copies| copies.uniq.size > 1 }
       unique = grouped.values.map(&:first)
-      closed = unique.select { |bar| bar[:opened_at] + duration <= now }
+      completed = unique.select { |bar| bar[:opened_at] + duration <= now }
+      closure, trading = completed.partition { |bar| MarketHours.closed?(bar[:opened_at]) }
       attributes[:duplicate_count] = bars.size - unique.size
-      attributes[:incomplete_count] = unique.size - closed.size
-      attributes[:closed_count] = closed.size
-      attributes[:earliest_opened_at] = closed.first&.fetch(:opened_at)
-      attributes[:fingerprints] = closed.to_h { |bar| [ bar[:opened_at], fingerprint(bar) ] }
-      return attributes.merge(status: "empty") if closed.empty?
+      attributes[:incomplete_count] = unique.size - completed.size
+      attributes[:closed_count] = trading.size
+      attributes[:closure_count] = closure.size
+      attributes[:earliest_opened_at] = trading.first&.fetch(:opened_at)
+      # Weekend candles are reported but never become reproducibility references.
+      attributes[:fingerprints] = trading.to_h { |bar| [ bar[:opened_at], fingerprint(bar) ] }
+      expected = MarketHours.last_expected_open(now, duration)
+      if trading.empty?
+        return attributes.merge(status: "empty") if closure.empty?
+        # The window holds only weekend candles; it is current when it starts after
+        # the last trading candle that should exist.
+        return attributes.merge(status: closure.first[:opened_at] > expected ? "closed" : "stale")
+      end
 
-      latest = closed.last[:opened_at] + duration
-      gaps = closed.each_cons(2).sum { |a, b| [ ((b[:opened_at] - a[:opened_at]) / duration).ceil - 1, 0 ].max }
+      latest = trading.last[:opened_at] + duration
+      gaps = trading.each_cons(2).sum { |a, b| MarketHours.missing_opens(a[:opened_at], b[:opened_at], duration) }
       freshness = (now - latest).to_i
-      status = gaps.positive? ? "gaps" : (freshness >= duration ? "stale" : "valid")
+      status = if gaps.positive? then "gaps"
+      elsif trading.last[:opened_at] < expected then "stale"
+      elsif MarketHours.closed?(now) then "closed"
+      else "valid"
+      end
       attributes.merge(status: status, latest_closed_at: latest, freshness_seconds: freshness, gap_count: gaps)
     end
 

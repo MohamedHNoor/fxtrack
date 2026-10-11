@@ -109,11 +109,10 @@ table exists while storage rights are unresolved.
 
 This is a diagnostic foundation, not a completed M00 implementation. The explicit collection task implements close-aligned due selection from observed
 closed timestamps and validates catalogue symbols separately. Cross-request
-candle reproducibility is checked through keyed fingerprints. Verified
-market-closure handling remains pending.
-Freshness and gap diagnostics conservatively reject stale/gapped data and do
-not assume weekends are feed failures or confirmed closures. The seven-day run
-must wait for those collection semantics to be verified. Historical retention
+candle reproducibility is checked through keyed fingerprints. Weekend closure
+follows the owner-selected New York 17:00 rule described under Closure update;
+it is a convention, not provider-confirmed session data. The seven-day run must
+still observe at least one weekend under that rule. Historical retention
 rights also remain unresolved. Do not mark M00 complete or enable production
 monitoring based on these fixtures.
 
@@ -157,7 +156,7 @@ a session advisory lock is released in ensure. No scheduler or background
 production worker was enabled. Stop collection by ceasing task invocations;
 resume uses persisted request/evaluation evidence. Do not infer market closure
 from absent data. Collection failures remain observable and M00 cannot pass
-until the closure policy and observation window are verified.
+until the observation window is verified.
 
 `bin/rails 'twelve_data:catalogue[EUR/USD]'` validates a single catalogue symbol
 with the same retry/quota controls. Catalogue records have no candle interval
@@ -196,3 +195,40 @@ Verification: 43 RSpec examples, adding overlap reproduction, mismatch
 rejection without digest replacement, keyed digests and decimal normalization.
 No live reproducibility evidence has been collected yet; that requires
 collection cycles separated by at least one close.
+
+## Closure update
+
+Twelve Data documents no forex session: market_state and exchange_schedule
+cover stock exchanges. A live EUR/USD H1 request on Sunday 2026-10-11 returned
+candles from 09:00 to 16:00 UTC, each with a nonzero high/low range, and H4
+responses ran continuously from Saturday 12:00 UTC. The provider therefore
+publishes moving weekend prices outside the conventional interbank week.
+
+The owner selected the New York 17:00 convention: the market is closed from
+Friday 17:00 to Sunday 17:00 America/New_York (21:00 to 21:00 UTC in daylight
+saving, 22:00 to 22:00 UTC in standard time). A candle is a closure candle when
+it opens inside that window. Closure candles:
+
+- are counted in closure_count, not closed_count;
+- are excluded from gap, freshness and latest_closed_at calculations;
+- never become reproducibility fingerprints.
+
+Freshness compares the latest trading candle with the most recent trading
+candle that should have closed, skipping the weekend. During the window,
+current data reports the closed status. A response holding only closure
+candles reports closed when it starts after the last expected trading candle,
+and stale otherwise. With outputsize 8, H4 responses early on Monday can hold
+only weekend candles, so closed may appear shortly after the reopen. Closed
+evaluations count as successful requests.
+
+Collection schedules the next request after the next trading candle closes, so
+no requests are made over the weekend. Market holidays (for example 25 December
+and 1 January) are not modelled and will surface as stale or gaps.
+
+Fingerprints collected on 2026-10-11 before this rule cover weekend candles
+only. They are never compared against trading candles, so they are inert.
+
+Verification: 54 RSpec examples, adding daylight and standard time boundaries,
+Friday close, missing final Friday candle, weekend gap suppression, weekend-only
+responses and weekend collection scheduling. Live trading-hours reproducibility
+evidence is scheduled after the 2026-10-11 21:00 UTC reopen.

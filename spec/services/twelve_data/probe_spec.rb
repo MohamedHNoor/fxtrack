@@ -118,3 +118,16 @@ RSpec.describe "Cross-request reproducibility" do
     expect(ProviderRequest.last.error_code).to eq("invalid_response")
   end
 end
+
+RSpec.describe "Weekend probing" do
+  it "records a weekend-only response as a successful closed evaluation" do
+    values = (8..15).map { |hour| { "datetime" => format("2026-10-11 %02d:00:00", hour), "open" => "1.1", "high" => "1.3", "low" => "1.0", "close" => "1.2" } }
+    payload = { "meta" => { "symbol" => "EUR/USD", "interval" => "1h", "type" => "Physical Currency" }, "values" => values }
+    client = instance_double(TwelveData::Client, time_series: TwelveData::Client::Response.new(status: "success", http_status: 200,
+      credits_used: 1, credits_left: 7, error_code: nil, payload: payload, retry_after: nil))
+    status = TwelveData::Probe.new(client: client, clock: -> { Time.utc(2026, 10, 11, 16, 30) }).run(symbol: "EUR/USD", interval: "1h")
+    expect(status).to eq("success")
+    expect(DataQualityMetric.last).to have_attributes(status: "closed", closure_count: 8, closed_count: 0)
+    expect(CandleFingerprint.count).to eq(0)
+  end
+end

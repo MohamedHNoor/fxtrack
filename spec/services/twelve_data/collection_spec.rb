@@ -30,3 +30,32 @@ RSpec.describe TwelveData::Collection do
     expect(result[:results].size).to eq(2)
   end
 end
+
+RSpec.describe TwelveData::Collection, "market closure" do
+  let(:probe) { instance_double(TwelveData::Probe) }
+
+  def called_at(now)
+    called = []
+    allow(probe).to receive(:run) { |**args| called << args; "success" }
+    described_class.new(probe: probe, clock: -> { now }).run
+    called
+  end
+
+  def collected(requested_at, latest_closed_at)
+    request = ProviderRequest.create!(symbol: "EUR/USD", interval: "1h", endpoint: "time_series", requested_at: requested_at, status: "success")
+    request.create_data_quality_metric!(status: "closed", evaluated_at: requested_at, latest_closed_at: latest_closed_at,
+      closed_count: 0, closure_count: 8, incomplete_count: 0, duplicate_count: 0, gap_count: 0)
+  end
+
+  it "waits over the weekend until the first trading candle after the reopen closes" do
+    collected(Time.utc(2026, 10, 9, 21, 2), Time.utc(2026, 10, 9, 21))
+    expect(called_at(Time.utc(2026, 10, 11, 22))).not_to include(symbol: "EUR/USD", interval: "1h")
+    expect(called_at(Time.utc(2026, 10, 11, 22, 1))).to include(symbol: "EUR/USD", interval: "1h")
+  end
+
+  it "schedules a weekend-only result from the next expected trading close" do
+    collected(Time.utc(2026, 10, 11, 16, 30), nil)
+    expect(called_at(Time.utc(2026, 10, 11, 21, 30))).not_to include(symbol: "EUR/USD", interval: "1h")
+    expect(called_at(Time.utc(2026, 10, 11, 22, 1))).to include(symbol: "EUR/USD", interval: "1h")
+  end
+end

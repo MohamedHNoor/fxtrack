@@ -66,3 +66,33 @@ RSpec.describe TwelveData::Quality, "fingerprints" do
     expect(fingerprints([ bar.merge("close" => "1.21") ])).not_to eq(fingerprints([ bar ]))
   end
 end
+
+RSpec.describe TwelveData::Quality, "market closure" do
+  def evaluate(now, interval, stamps)
+    values = stamps.map { |stamp| { "datetime" => stamp.strftime("%Y-%m-%d %H:%M:%S"), "open" => "1.1", "high" => "1.3", "low" => "1.0", "close" => "1.2" } }
+    payload = { "meta" => { "symbol" => "EUR/USD", "interval" => interval, "type" => "Physical Currency" }, "values" => values }
+    described_class.new(clock: -> { now }, fingerprint_key: "a" * 32).evaluate(payload, symbol: "EUR/USD", interval: interval)
+  end
+
+  def hours(day, range) = range.map { |hour| Time.utc(2026, 10, day, hour) }
+
+  it "reports a weekend-only window as closed without fingerprints" do
+    result = evaluate(Time.utc(2026, 10, 11, 16, 30), "1h", hours(11, 8..15))
+    expect(result).to include(status: "closed", closed_count: 0, closure_count: 8, fingerprints: {})
+  end
+
+  it "accepts data ending at the Friday close during the weekend" do
+    result = evaluate(Time.utc(2026, 10, 10, 12), "1h", hours(9, 18..23))
+    expect(result).to include(status: "closed", closed_count: 3, closure_count: 3, gap_count: 0, latest_closed_at: Time.utc(2026, 10, 9, 21))
+  end
+
+  it "flags a missing final Friday candle as stale" do
+    result = evaluate(Time.utc(2026, 10, 10, 12), "1h", hours(9, [ 18, 19, 21, 22 ]))
+    expect(result[:status]).to eq("stale")
+  end
+
+  it "does not count the weekend as a gap after the reopen" do
+    stamps = hours(9, [ 12, 16, 20 ]) + [ Time.utc(2026, 10, 12, 0) ]
+    expect(evaluate(Time.utc(2026, 10, 12, 5), "4h", stamps)).to include(status: "valid", gap_count: 0, closed_count: 4)
+  end
+end

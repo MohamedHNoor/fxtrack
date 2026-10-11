@@ -43,8 +43,12 @@ module TwelveData
       now = @clock.call.utc
       return false if now < request.requested_at + 60
       metric = request.data_quality_metric
-      return true unless request.status == "success" && metric&.latest_closed_at
-      now >= metric.latest_closed_at + Quality::DURATIONS.fetch(interval) + 60
+      return true unless request.status == "success" && metric
+      duration = Quality::DURATIONS.fetch(interval)
+      # A weekend-only response has no trading close; resume after the next
+      # trading candle that should exist since the request.
+      known = metric.latest_closed_at || MarketHours.last_expected_open(request.requested_at, duration) + duration
+      now >= MarketHours.next_open(known, duration) + duration + 60
     end
   end
 end
