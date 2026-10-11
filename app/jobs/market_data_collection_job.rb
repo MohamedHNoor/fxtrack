@@ -5,8 +5,11 @@ class MarketDataCollectionJob < ApplicationJob
 
   def perform
     return { status: "no_active_session", results: [] } unless Session.active.exists?
-    result = TwelveData::Collection.new.run
-    # Analysis runs after every cycle; it skips candles it has already evaluated.
+    symbols = Rails.configuration.x.collect_all_pairs ? ProviderRequest::SYMBOLS : CurrencyPair.enabled.ordered.pluck(:symbol)
+    return { status: "no_enabled_pairs", results: [] } if symbols.empty?
+
+    result = TwelveData::Collection.new(symbols: symbols).run
+    # Analysis runs after every cycle on enabled pairs; it skips candles it has already evaluated.
     signals = Strategies::SignalEngine.new.run
     signals[:signals].positive? ? result.merge(signals: signals) : result
   end

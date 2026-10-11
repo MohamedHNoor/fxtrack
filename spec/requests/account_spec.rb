@@ -76,6 +76,18 @@ RSpec.describe "Account and risk" do
     expect(response).to redirect_to("/settings")
   end
 
+  it "saves pair preferences from the settings page" do
+    patch currency_pairs_path, params: { enabled_symbols: [ "", "EUR/USD", "NZD/USD" ] }
+    expect(response).to redirect_to(settings_path(anchor: "pairs-heading"))
+    expect(CurrencyPair.enabled.ordered.pluck(:symbol)).to eq(%w[EUR/USD NZD/USD])
+    follow_redirect!
+    expect(response.body).to include("disabled GBP/USD", 'id="pair-NZDUSD"')
+
+    patch currency_pairs_path, params: { enabled_symbols: [ "" ] }
+    follow_redirect!
+    expect(response.body).to include("Monitoring is paused")
+  end
+
   it "does not save risk settings just by viewing them" do
     expect { get settings_path }.not_to change(RiskProfile, :count)
   end

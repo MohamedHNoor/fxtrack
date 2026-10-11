@@ -72,15 +72,28 @@
 
 <section class="card mt-6" aria-labelledby="pairs-heading">
   <h2 id="pairs-heading" class="text-lg font-semibold">Currency pair preferences</h2>
-  <p class="mt-1 mb-4 text-sm text-muted">Only enabled pairs are monitored while a valid owner session exists. Changing pairs is not available yet.</p>
-  <ul class="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-    <% @pairs.each do |pair| %>
-      <li class="flex items-center justify-between gap-3 rounded-lg border border-line bg-raised px-4 py-3">
-        <span class="font-medium"><%= pair.symbol %></span>
-        <span class="text-xs font-semibold <%= pair.enabled ? "text-positive" : "text-faint" %>"><%= pair.enabled ? "Enabled" : "Disabled" %></span>
-      </li>
+  <p class="mt-1 mb-4 text-sm text-muted">Only enabled pairs are analysed for signals while a valid owner session exists. Disabling a pair keeps its history and invalidates its live signals.</p>
+  <%= form_with url: currency_pairs_path, method: :patch do |form| %>
+    <%= hidden_field_tag "enabled_symbols[]", "", id: nil %>
+    <fieldset>
+      <legend class="sr-only">Enabled currency pairs</legend>
+      <div class="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+        <% @pairs.each do |pair| %>
+          <label class="flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-line bg-raised px-4 py-3 hover:border-info has-checked:border-positive/60">
+            <span class="font-medium"><%= pair.symbol %></span>
+            <%= check_box_tag "enabled_symbols[]", pair.symbol, pair.enabled, id: "pair-#{pair.to_param}", class: "size-5 accent-accent" %>
+          </label>
+        <% end %>
+      </div>
+    </fieldset>
+    <% if @pairs.none?(&:enabled) %>
+      <p role="status" class="mt-4 text-sm text-warning">Monitoring is paused: no pairs are enabled.</p>
     <% end %>
-  </ul>
+    <% if Rails.configuration.x.collect_all_pairs %>
+      <p class="mt-4 text-xs text-faint">Market data is still collected for all seven pairs while the Twelve Data feasibility evidence is gathered; toggles control analysis and signals.</p>
+    <% end %>
+    <%= form.submit "Save pair preferences", class: "button button-primary mt-4 cursor-pointer" %>
+  <% end %>
 </section>
 
 <section class="card mt-6" aria-labelledby="calculator-heading">

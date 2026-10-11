@@ -2,8 +2,8 @@ module TwelveData
   class Collection
     LOCK_ID = 84_120_009
 
-    def initialize(probe: Probe.new, clock: -> { Time.current })
-      @probe, @clock = probe, clock
+    def initialize(probe: Probe.new, clock: -> { Time.current }, symbols: ProviderRequest::SYMBOLS)
+      @probe, @clock, @symbols = probe, clock, symbols
     end
 
     def run
@@ -21,7 +21,7 @@ module TwelveData
     private
 
     def collect
-      candidates = ProviderRequest::SYMBOLS.product(ProviderRequest::INTERVALS)
+      candidates = @symbols.product(ProviderRequest::INTERVALS)
       candidates.sort_by! { |symbol, interval| latest_request(symbol, interval)&.requested_at || Time.at(0).utc }
       results = []
       candidates.each do |symbol, interval|

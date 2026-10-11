@@ -24,7 +24,7 @@ module SignalsHelper
   def usd_exposure_warnings(signals)
     signals.group_by(&:usd_exposure).filter_map do |exposure, group|
       next if group.size < 2
-      "#{group.map { |signal| "#{signal.direction} #{signal.symbol}" }.to_sentence} all #{exposure == :long_usd ? "buy" : "sell"} US dollars. Together they risk about #{nzd(group.sum { _1.risk_at_size || 0 })}, not one trade's risk."
+      "#{group.sort_by(&:symbol).map { |signal| "#{signal.direction} #{signal.symbol}" }.to_sentence} all #{exposure == :long_usd ? "buy" : "sell"} US dollars. Together they risk about #{nzd(group.sum { _1.risk_at_size || 0 })}, not one trade's risk."
     end
   end
 end

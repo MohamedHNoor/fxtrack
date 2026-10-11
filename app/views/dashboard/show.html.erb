@@ -12,7 +12,7 @@
   <section aria-label="Summary" class="mb-6 grid grid-cols-2 gap-3 xl:grid-cols-4">
     <% [["Account balance", @account ? nzd(@account.balance) : "Not set up", @account ? "Starting capital plus recorded cash movements." : "Set up starting capital on the Account page.", "border-t-accent"],
         ["Active signals", @active_signals.zero? ? "None" : @active_signals.to_s, @active_signals.zero? ? "Strategies analyse each completed H1 candle." : "Review them on the Signals page.", "border-t-positive"],
-        ["Enabled pairs", "#{@pairs.size} of #{ProviderRequest::SYMBOLS.size}", "Pair settings arrive with currency pair preferences.", "border-t-violet"],
+        ["Enabled pairs", "#{@pairs.size} of #{ProviderRequest::SYMBOLS.size}", "Change them in Settings.", "border-t-violet"],
         ["Owner sessions", @active_sessions.to_s, "Monitoring runs while at least one is valid.", "border-t-info"]].each_with_index do |(label, value, hint, tone), index| %>
       <div class="card border-t-3 p-4 md:p-6 <%= tone %>" data-reveal-target="item" style="--delay: <%= index * 70 %>ms">
         <p class="text-sm text-muted"><%= label %></p>
@@ -35,7 +35,7 @@
       <h2 id="monitoring-heading" class="mb-4 text-lg font-semibold">Monitoring status</h2>
       <dl class="divide-y divide-line">
         <% [["Owner sessions", "#{@active_sessions} valid"],
-            ["Monitoring", @active_sessions.positive? ? "Active while a session is valid" : "Paused, no valid session"],
+            ["Monitoring", @pairs.empty? ? "Paused, no pairs enabled" : (@active_sessions.positive? ? "Active while a session is valid" : "Paused, no valid session")],
             ["Provider", "Twelve Data"],
             ["Last request", @last_request ? "#{@last_request.status.humanize} · #{owner_time(@last_request.requested_at)}" : "None yet"],
             ["Market", TwelveData::MarketHours.closed?(Time.current) ? "Closed for the weekend" : "Open"]].each do |label, value| %>

@@ -39,7 +39,7 @@ RSpec.describe "Signals and strategies" do
       verdict: "buy", evaluated_at: now)
     TradeSignal.create!(first.attributes.except("id", "strategy_run_id", "symbol", "created_at", "updated_at").merge(strategy_run: second_run, symbol: "AUD/USD"))
     travel_to(now) { get signals_path }
-    expect(response.body).to include("Correlated US dollar exposure", "buy EUR/USD and buy AUD/USD all sell US dollars")
+    expect(response.body).to include("Correlated US dollar exposure", "buy AUD/USD and buy EUR/USD all sell US dollars")
   end
 
   it "versions edits, clones disabled copies and archives strategies" do

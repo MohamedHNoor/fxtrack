@@ -21,3 +21,31 @@ RSpec.describe MarketDataCollectionJob do
     described_class.perform_now
   end
 end
+
+RSpec.describe MarketDataCollectionJob, "pair eligibility" do
+  let(:user) { User.create!(email_address: "owner@example.com", password: "correct horse battery") }
+
+  before { user.sessions.create! }
+
+  around do |example|
+    original = Rails.configuration.x.collect_all_pairs
+    example.run
+    Rails.configuration.x.collect_all_pairs = original
+  end
+
+  it "collects every pair while M00 evidence is gathered" do
+    Rails.configuration.x.collect_all_pairs = true
+    CurrencyPair.where.not(symbol: "EUR/USD").update_all(enabled: false)
+    expect(TwelveData::Collection).to receive(:new).with(symbols: ProviderRequest::SYMBOLS).and_return(double(run: { status: "collected", results: [] }))
+    described_class.perform_now
+  end
+
+  it "collects only enabled pairs afterwards and pauses with none" do
+    Rails.configuration.x.collect_all_pairs = false
+    CurrencyPair.where.not(symbol: %w[EUR/USD NZD/USD]).update_all(enabled: false)
+    expect(TwelveData::Collection).to receive(:new).with(symbols: %w[EUR/USD NZD/USD]).and_return(double(run: { status: "collected", results: [] }))
+    described_class.perform_now
+    CurrencyPair.update_all(enabled: false)
+    expect(described_class.perform_now).to eq(status: "no_enabled_pairs", results: [])
+  end
+end
