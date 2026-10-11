@@ -1,0 +1,31 @@
+/* Durable FXTrack design tokens, ready to port to the Rails Tailwind theme. */
+:root {
+ --bg:#061525; --surface:#0b2035; --surface-raised:#0c2942; --sidebar:#061b44;
+ --border:#21445f; --text:#e6efff; --muted:#9cb2cb; --faint:#748ca6;
+ --accent:#0866ff; --accent-hover:#2382ff; --accent-ink:#fff; --info:#48b6ff;
+ --positive:#00c96b; --positive-bg:#075b4b; --negative:#ff4d5a; --negative-bg:#62243a;
+ --warning:#ffca65; --warning-bg:#382f22; --violet:#925ce2;
+ --auth-bg:#fff; --auth-text:#132440; --auth-muted:#526e91; --auth-border:#cddced;
+ --glow:#123b65; --overlay:#020b18cc; --shadow:#0006;
+ --font-sans:Inter,Arial,Helvetica,system-ui,sans-serif; --font-mono:ui-monospace,monospace;
+ --space-1:4px; --space-2:8px; --space-3:12px; --space-4:16px; --space-5:20px;
+ --space-6:24px; --space-8:32px; --space-10:40px; --space-12:48px; --space-16:64px;
+ --text-xs:12px; --text-sm:14px; --text-base:16px; --text-lg:20px;
+ --text-xl:24px; --text-2xl:34px; --text-hero:clamp(40px,5vw,76px);
+ --radius-sm:8px; --radius:16px; --radius-lg:24px;
+ --sidebar-width:220px; --content-width:1400px; --auth-width:450px;
+ --size-1100:1100px;
+ --size-1200:1200px;
+ --size-180:180px;
+ --size-1:1px;
+ --size-360:360px;
+ --size-3:3px;
+ --size-500:500px;
+ --size-760:760px;
+ --brand-navy:#061b44; --brand-green:#00c96b; --brand-soft:#082b35;
+ --logo-width:150px; --logo-image-width:150px; --logo-height:49px;
+ --logo-large-width:185px; --logo-large-image-width:185px; --logo-large-height:60px;
+ --icon-size:48px; --line-height:1.5; --tracking-tight:-.025em;
+ --ease:160ms ease; --lift:-2px; --hairline:1px;
+}
+
