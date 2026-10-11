@@ -1,0 +1,19 @@
+<% case @delivery.event %>
+<% when "new_signal" %>
+  <h1 style="font-size:20px;margin:0 0 4px"><%= @signal.direction.upcase %> <%= @signal.symbol %></h1>
+  <p style="color:#526e91;margin:0 0 16px"><%= @signal.strategy_version.label %></p>
+  <table cellpadding="6" style="border-collapse:collapse">
+    <tr><td>Entry</td><td><strong><%= format_price(@signal.symbol, @signal.entry) %></strong></td></tr>
+    <tr><td>Stop loss</td><td><strong><%= format_price(@signal.symbol, @signal.stop) %></strong> (<%= @signal.stop_pips.to_s("F") %> pips)</td></tr>
+    <tr><td>Take profit</td><td><strong><%= format_price(@signal.symbol, @signal.target) %></strong> (<%= @signal.reward_ratio.to_s("F") %>R)</td></tr>
+    <tr><td>Position</td><td><%= @signal.lots ? "#{@signal.lots.to_s("F")} lots, risk #{nzd(@signal.risk_at_size)}" : "Not sized: #{@signal.sizing_error}" %></td></tr>
+    <tr><td>Expires</td><td><%= owner_time(@signal.expires_at) %></td></tr>
+  </table>
+  <p><strong>Why:</strong> <%= Array(@signal.evidence["reasons"]).join("; ") %></p>
+<% when "expired" %>
+  <p>The <strong><%= @signal.direction.upcase %> <%= @signal.symbol %></strong> signal from <%= owner_time(@signal.generated_at) %> expired without being invalidated.</p>
+<% else %>
+  <p>The <strong><%= @signal.direction.upcase %> <%= @signal.symbol %></strong> signal from <%= owner_time(@signal.generated_at) %> was invalidated: <%= @signal.status_reason %>.</p>
+<% end %>
+<p><%= link_to "View the full analysis", signal_url(@signal) %></p>
+<p style="color:#526e91;font-size:12px">FXTrack proposes trades; it never places them. Gaps and slippage can exceed planned risk.</p>

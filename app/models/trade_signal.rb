@@ -6,6 +6,10 @@ class TradeSignal < ApplicationRecord
 
   belongs_to :strategy_version
   belongs_to :strategy_run
+  has_many :signal_deliveries, dependent: :restrict_with_exception
+
+  after_create_commit { SignalNotifier.notify(self, "new_signal") }
+  after_update_commit { SignalNotifier.notify(self, status) if saved_change_to_status? && %w[expired invalidated].include?(status) }
 
   validates :symbol, inclusion: { in: ProviderRequest::SYMBOLS }
   validates :direction, inclusion: { in: %w[buy sell] }

@@ -62,9 +62,9 @@ once the password changes. A successful reset signs out every device. The reset
 page sets `Referrer-Policy: no-referrer` through a meta tag so the token is
 not leaked to other sites.
 
-In development, mail is written to `tmp/mails/` instead of being sent.
-Production has no email provider yet; until one is chosen, reset email cannot
-be delivered in production and `owner:password` is the recovery path.
+Reset emails go through Resend (see `docs/alerts.md`). In development they are
+written to `tmp/mails/` until a `RESEND_API_KEY` is in credentials.
+`owner:password` remains the recovery path if email is unavailable.
 
 ## Rate limits
 
@@ -78,7 +78,6 @@ development and test.
 
 ## Pending for production (M12)
 
-- Choose an email provider and sender address (`ApplicationMailer` uses a
-  placeholder `no-reply@example.com`).
+- Set `APP_HOST` so emailed links use the production domain.
 - Enable `config.assume_ssl` and `config.force_ssl` once the Railway HTTPS
   setup is confirmed. The session cookie is already Secure in production.

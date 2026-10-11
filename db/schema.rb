@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_12_120000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_12_130000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -94,6 +94,17 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_12_120000) do
     t.check_constraint "reproduced_count >= 0 AND mismatch_count >= 0", name: "quality_reproduction_nonnegative"
   end
 
+  create_table "notification_preferences", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.boolean "email_enabled", default: false, null: false
+    t.boolean "notify_new_signal", default: true, null: false
+    t.boolean "notify_expired", default: false, null: false
+    t.boolean "notify_invalidated", default: false, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["user_id"], name: "index_notification_preferences_on_user_id", unique: true
+  end
+
   create_table "provider_requests", force: :cascade do |t|
     t.string "symbol", null: false
     t.string "interval"
@@ -142,6 +153,25 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_12_120000) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["user_id"], name: "index_sessions_on_user_id"
+  end
+
+  create_table "signal_deliveries", force: :cascade do |t|
+    t.bigint "trade_signal_id", null: false
+    t.string "channel", null: false
+    t.string "event", null: false
+    t.string "status", default: "pending", null: false
+    t.integer "attempts", default: 0, null: false
+    t.datetime "sent_at"
+    t.string "error_code"
+    t.string "reason"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["status"], name: "index_signal_deliveries_on_status"
+    t.index ["trade_signal_id", "channel", "event"], name: "index_signal_deliveries_once", unique: true
+    t.index ["trade_signal_id"], name: "index_signal_deliveries_on_trade_signal_id"
+    t.check_constraint "channel::text = 'email'::text", name: "signal_delivery_channel"
+    t.check_constraint "event::text = ANY (ARRAY['new_signal'::character varying, 'expired'::character varying, 'invalidated'::character varying]::text[])", name: "signal_delivery_event"
+    t.check_constraint "status::text = ANY (ARRAY['pending'::character varying, 'sent'::character varying, 'failed'::character varying, 'suppressed'::character varying]::text[])", name: "signal_delivery_status"
   end
 
   create_table "strategies", force: :cascade do |t|
@@ -240,8 +270,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_12_120000) do
   add_foreign_key "candle_fingerprints", "provider_requests"
   add_foreign_key "candles", "provider_requests"
   add_foreign_key "data_quality_metrics", "provider_requests"
+  add_foreign_key "notification_preferences", "users"
   add_foreign_key "risk_profiles", "users"
   add_foreign_key "sessions", "users"
+  add_foreign_key "signal_deliveries", "trade_signals"
   add_foreign_key "strategies", "users"
   add_foreign_key "strategy_runs", "strategy_versions"
   add_foreign_key "strategy_versions", "strategies"

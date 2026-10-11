@@ -4,6 +4,7 @@ class User < ApplicationRecord
   has_one :trading_account, dependent: :restrict_with_exception
   has_one :risk_profile, dependent: :destroy
   has_many :strategies, dependent: :restrict_with_exception
+  has_one :notification_preference, dependent: :destroy
 
   normalizes :email_address, with: ->(e) { e.strip.downcase }
 

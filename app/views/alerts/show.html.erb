@@ -1,0 +1,54 @@
+<% content_for :title, "Alerts · FXTrack" %>
+
+<header class="motion-rise mb-8">
+  <h1 class="text-2xl font-bold tracking-tight md:text-3xl">Notification preferences</h1>
+  <p class="mt-1 text-muted">Choose how you receive eligible signal alerts.</p>
+</header>
+
+<% if alert %><p role="alert" class="mb-6 rounded-lg border border-negative/50 bg-negative-bg/40 px-4 py-3 text-sm"><%= alert %></p><% end %>
+
+<div class="grid gap-6 lg:grid-cols-2">
+  <section class="card motion-rise" aria-labelledby="channels-heading">
+    <h2 id="channels-heading" class="mb-4 text-lg font-semibold">Delivery channels</h2>
+    <%= render "accounts/errors", record: @preference %>
+    <%= form_with model: @preference, url: alerts_path, method: :patch do |form| %>
+      <div class="divide-y divide-line">
+        <% [[:email_enabled, "Email notifications", "Sent to #{Current.user.email_address} from info@contact.mohamedhnoor.com"],
+            [:notify_new_signal, "New qualifying signal", nil],
+            [:notify_expired, "Signal expired (optional)", nil],
+            [:notify_invalidated, "Signal invalidated (optional)", nil]].each do |field, label, hint| %>
+          <label class="flex cursor-pointer items-center justify-between gap-4 py-3">
+            <span><%= label %><% if hint %><span class="block text-xs text-faint"><%= hint %></span><% end %></span>
+            <%= form.check_box field, class: "size-5 accent-accent" %>
+          </label>
+        <% end %>
+        <div class="flex items-center justify-between gap-4 py-3 text-muted">
+          <span>Telegram notifications</span><span class="text-xs text-faint">Not available yet</span>
+        </div>
+      </div>
+      <%= form.submit "Save alert settings", class: "button button-primary mt-4 w-full cursor-pointer" %>
+    <% end %>
+    <p class="mt-4 border-l-3 border-warning bg-warning-bg px-4 py-3 text-sm text-warning">New signal alerts require an enabled pair and a valid owner session at dispatch.</p>
+  </section>
+
+  <section class="card motion-rise" style="--delay: 100ms" aria-labelledby="test-heading">
+    <h2 id="test-heading" class="text-lg font-semibold">Email delivery</h2>
+    <p class="mt-1 mb-4 text-sm text-muted">Alerts are sent through Resend. Send a test to confirm delivery reaches your inbox.</p>
+    <%= button_to "Send test email", test_alerts_path, class: "button cursor-pointer" %>
+
+    <h3 class="mt-6 mb-2 text-sm font-semibold">Recent deliveries</h3>
+    <% if @deliveries.empty? %>
+      <p class="text-sm text-muted">No alerts sent yet.</p>
+    <% else %>
+      <ul class="divide-y divide-line text-sm">
+        <% @deliveries.each do |delivery| %>
+          <% tone = { "sent" => "text-positive", "failed" => "text-negative", "suppressed" => "text-faint", "pending" => "text-warning" }.fetch(delivery.status) %>
+          <li class="flex flex-wrap justify-between gap-2 py-2">
+            <span><%= link_to "#{delivery.trade_signal.direction.upcase} #{delivery.trade_signal.symbol}", signal_path(delivery.trade_signal), class: "hover:underline" %> · <%= delivery.event.humanize.downcase %></span>
+            <span class="<%= tone %>"><%= delivery.status.capitalize %><%= " · #{delivery.reason}" if delivery.reason %><%= " (#{delivery.error_code})" if delivery.error_code %> · <%= owner_time(delivery.updated_at) %></span>
+          </li>
+        <% end %>
+      </ul>
+    <% end %>
+  </section>
+</div>

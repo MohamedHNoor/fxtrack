@@ -28,6 +28,9 @@ Rails.application.routes.draw do
     resource :reversal, only: :create
   end
   resource :settings, only: :show
+  resource :alerts, only: %i[ show update ] do
+    post :test
+  end
   resource :risk_profile, only: :update, path: "settings/risk"
   resource :currency_pairs, only: :update, path: "settings/pairs"
   get "risk", to: redirect("/settings")

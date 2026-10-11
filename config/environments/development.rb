@@ -31,14 +31,23 @@ Rails.application.configure do
   # Store uploaded files on the local file system (see config/storage.yml for options).
   config.active_storage.service = :local
 
-  # Don't care if the mailer can't send.
-  config.action_mailer.raise_delivery_errors = false
+  # Raise delivery errors so alert failures are recorded and visible.
+  config.action_mailer.raise_delivery_errors = true
 
   # Make template changes take effect immediately.
   config.action_mailer.perform_caching = false
 
-  # Write mail to tmp/mails instead of sending it; no provider is configured yet.
-  config.action_mailer.delivery_method = :file
+  # Send through Resend once its API key is in credentials; otherwise write mail
+  # to tmp/mails so nothing leaves the machine.
+  if Rails.application.credentials[:RESEND_API_KEY].present?
+    config.action_mailer.delivery_method = :smtp
+    config.action_mailer.smtp_settings = {
+      address: "smtp.resend.com", port: 465, user_name: "resend",
+      password: Rails.application.credentials[:RESEND_API_KEY], tls: true
+    }
+  else
+    config.action_mailer.delivery_method = :file
+  end
 
   # Set localhost to be used by links generated in mailer templates.
   config.action_mailer.default_url_options = { host: "localhost", port: 3000 }

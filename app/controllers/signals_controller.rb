@@ -3,7 +3,7 @@ class SignalsController < ApplicationController
 
   def index
     Strategy.ensure_default_for(Current.user)
-    signals = owner_signals.includes(strategy_version: :strategy)
+    signals = owner_signals.includes(:signal_deliveries, strategy_version: :strategy)
     @active = signals.active.where("trade_signals.expires_at > ?", Time.current).recent.to_a
     @history = signals.where.not(id: @active.map(&:id)).recent.limit(20)
     @latest_runs = latest_runs

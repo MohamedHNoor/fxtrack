@@ -1,0 +1,20 @@
+<% case @delivery.event %>
+<% when "new_signal" %>
+<%= @signal.direction.upcase %> <%= @signal.symbol %> (<%= @signal.strategy_version.label %>)
+
+Entry:       <%= format_price(@signal.symbol, @signal.entry) %>
+Stop loss:   <%= format_price(@signal.symbol, @signal.stop) %> (<%= @signal.stop_pips.to_s("F") %> pips)
+Take profit: <%= format_price(@signal.symbol, @signal.target) %> (<%= @signal.reward_ratio.to_s("F") %>R)
+Position:    <%= @signal.lots ? "#{@signal.lots.to_s("F")} lots, risk #{nzd(@signal.risk_at_size)}" : "Not sized: #{@signal.sizing_error}" %>
+Expires:     <%= owner_time(@signal.expires_at) %>
+
+Why: <%= Array(@signal.evidence["reasons"]).join("; ") %>
+<% when "expired" %>
+The <%= @signal.direction.upcase %> <%= @signal.symbol %> signal from <%= owner_time(@signal.generated_at) %> expired without being invalidated.
+<% else %>
+The <%= @signal.direction.upcase %> <%= @signal.symbol %> signal from <%= owner_time(@signal.generated_at) %> was invalidated: <%= @signal.status_reason %>.
+<% end %>
+
+Full analysis: <%= signal_url(@signal) %>
+
+FXTrack proposes trades; it never places them. Gaps and slippage can exceed planned risk.
