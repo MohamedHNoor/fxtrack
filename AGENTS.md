@@ -70,6 +70,11 @@ It requires a working Ruby/Bundler environment and PostgreSQL. Security audits
 may need network access. Production asset compilation and startup require the
 project's environment and credentials.
 
+When running `bin/ci` from a sandboxed agent, allow access to the configured local
+PostgreSQL socket and security-audit network endpoints. A denied database socket
+or failed Brakeman latest-release lookup is not a completed verification run;
+rerun with the required access and retain every configured check.
+
 No test command or browser test harness is configured. Rails test support is
 disabled in `config/application.rb`. Tests are not yet a gate. Configure testing
 explicitly before requiring test coverage.
