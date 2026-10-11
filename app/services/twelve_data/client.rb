@@ -13,20 +13,27 @@ module TwelveData
     def time_series(symbol:, interval:)
       raise ArgumentError, "Unsupported forex symbol" unless ProviderRequest::SYMBOLS.include?(symbol)
       raise ArgumentError, "Unsupported interval" unless ProviderRequest::INTERVALS.include?(interval)
+      fetch("time_series", symbol: symbol, interval: interval, timezone: "UTC", outputsize: 8, order: "asc", format: "JSON")
+    end
+
+    def forex_pairs(symbol:)
+      raise ArgumentError, "Unsupported forex symbol" unless ProviderRequest::SYMBOLS.include?(symbol)
+      fetch("forex_pairs", symbol: symbol, format: "JSON")
+    end
+
+    private
+
+    def fetch(endpoint, **parameters)
       key = @key.call
       raise ArgumentError, "Missing data_api_key credential" unless key.is_a?(String) && key.present? && !key.match?(/[\r\n]/)
-
-      uri = URI("https://api.twelvedata.com/time_series")
-      uri.query = URI.encode_www_form(symbol: symbol, interval: interval, timezone: "UTC", outputsize: 8, order: "asc", format: "JSON")
-      http = @transport.call(uri, { "Authorization" => "apikey #{key}" })
-      normalize(http)
+      uri = URI("https://api.twelvedata.com/#{endpoint}")
+      uri.query = URI.encode_www_form(parameters)
+      normalize(@transport.call(uri, { "Authorization" => "apikey #{key}" }))
     rescue Net::OpenTimeout, Net::ReadTimeout, Timeout::Error
       failure("timeout")
     rescue SocketError, EOFError, IOError, SystemCallError, OpenSSL::SSL::SSLError
       failure("transport_error")
     end
-
-    private
 
     def request(uri, headers)
       Net::HTTP.start(uri.host, uri.port, use_ssl: true, open_timeout: 5, read_timeout: 10, write_timeout: 5, max_retries: 0) do |http|

@@ -8,13 +8,19 @@ module TwelveData
       @client, @clock, @sleeper = client, clock, sleeper
     end
 
-    def run(symbol:, interval:)
+    def run(symbol:, interval: nil, endpoint: "time_series")
       raise ArgumentError, "Unsupported forex symbol" unless ProviderRequest::SYMBOLS.include?(symbol)
-      raise ArgumentError, "Unsupported interval" unless ProviderRequest::INTERVALS.include?(interval)
+      raise ArgumentError, "Unsupported interval" if endpoint == "time_series" && !ProviderRequest::INTERVALS.include?(interval)
+      raise ArgumentError, "Unsupported endpoint" unless %w[time_series forex_pairs].include?(endpoint)
+      raise ArgumentError, "Catalogue has no interval" if endpoint == "forex_pairs" && interval
       3.times do |attempt|
-        request = reserve(symbol, interval)
+        request = reserve(symbol, interval, endpoint)
         return "quota_paused" unless request
-        response = @client.time_series(symbol: symbol, interval: interval)
+        response = if endpoint == "time_series"
+          @client.time_series(symbol: symbol, interval: interval)
+        else
+          @client.forex_pairs(symbol: symbol)
+        end
         persist(request, response, symbol, interval)
         return request.status unless retryable?(response) && attempt < 2
         delay = response.retry_after || 2**(attempt + 1)
@@ -25,7 +31,7 @@ module TwelveData
 
     private
 
-    def reserve(symbol, interval)
+    def reserve(symbol, interval, endpoint)
       ProviderRequest.transaction do
         ProviderRequest.connection.execute("SELECT pg_advisory_xact_lock(#{LOCK_ID})")
         now = @clock.call.utc
@@ -34,22 +40,34 @@ module TwelveData
         today = ProviderRequest.where(requested_at: day...day + 1.day)
         recent = today.where(requested_at: minute...minute + 60)
         next if used(today) >= DAY_BUDGET || used(recent) >= MINUTE_BUDGET
-        last = recent.where.not(credits_left: nil).order(:requested_at, :id).last
-        next if last && last.credits_left <= 1
-        ProviderRequest.create!(symbol: symbol, interval: interval, endpoint: "time_series", requested_at: now, status: "reserved")
+        remaining = recent.minimum(:credits_left)
+        remote_used = recent.maximum(:credits_used).to_i
+        pending = recent.where(status: "reserved").count
+        next if (remaining && remaining <= 1) || remote_used + pending >= MINUTE_BUDGET
+        ProviderRequest.create!(symbol: symbol, interval: interval, endpoint: endpoint, requested_at: now, status: "reserved")
       end
     end
 
     def used(scope)
-      scope.sum("GREATEST(COALESCE(credits_used, 1), 1)")
+      scope.count
     end
 
     def persist(request, response, symbol, interval)
       ProviderRequest.transaction do
         request.update!(status: response.status, http_status: response.http_status,
           credits_used: response.credits_used, credits_left: response.credits_left, error_code: response.error_code)
-        if response.status == "success"
+        if response.status == "success" && request.endpoint == "forex_pairs"
+          entries = response.payload["data"]
+          listed = entries.is_a?(Array) && entries.any? { |entry| entry.is_a?(Hash) && entry["symbol"] == symbol }
+          request.update!(status: "invalid_data", error_code: "invalid_response") unless listed
+        elsif response.status == "success"
           quality = Quality.new(clock: @clock).evaluate(response.payload, symbol: symbol, interval: interval)
+          previous = DataQualityMetric.joins(:provider_request)
+            .where(provider_requests: { symbol: symbol, interval: interval, endpoint: "time_series" })
+            .where.not(latest_closed_at: nil).maximum(:latest_closed_at)
+          if previous && quality[:latest_closed_at] && quality[:latest_closed_at] < previous
+            quality[:status] = "invalid"
+          end
           request.create_data_quality_metric!(quality)
           request.update!(status: "invalid_data", error_code: "invalid_response") unless quality[:status] == "valid"
         end

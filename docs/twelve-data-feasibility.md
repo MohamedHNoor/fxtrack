@@ -86,9 +86,11 @@ acceptance gate pending; request counts do not imply seven days of usable data.
 The diagnostic quota policy uses 7 requests/credits per minute and 720 per UTC
 day, retaining one minute credit and 80 daily credits below the confirmed Basic
 8 limits. Reservations use a PostgreSQL transaction advisory lock shared by
-all probe processes. Every attempt reserves at least one credit; unknown costs
-and crashed reservations still consume local budget. Response credit headers
-are recorded when numeric, and a low minute balance pauses further requests.
+all probe processes. Each attempt reserves one documented endpoint credit; crashed reservations
+still consume local budget. The credits_used column retains the raw cumulative
+minute header, not a per-request cost. It must not be summed across requests. Response credit headers are recorded when numeric. Cumulative remote minute
+usage and in-flight local reservations protect headroom; a low minute balance
+pauses further requests.
 This cannot coordinate independent applications sharing the same key; their
 consumption must be accounted for before unattended observation. No paid
 upgrade is performed.
@@ -103,9 +105,9 @@ exists while storage rights are unresolved.
 
 ## Outstanding implementation and observation gates
 
-This is a diagnostic foundation, not a completed M00 implementation. Explicit
-probe tasks do not yet implement close-aligned recurring collection, catalogue
-validation, cross-request reproducibility or verified market-closure handling.
+This is a diagnostic foundation, not a completed M00 implementation. The explicit collection task implements close-aligned due selection from observed
+closed timestamps and validates catalogue symbols separately. Exact cross-request
+price reproducibility and verified market-closure handling remain pending.
 Freshness and gap diagnostics conservatively reject stale/gapped data and do
 not assume weekends are feed failures or confirmed closures. The seven-day run
 must wait for those collection semantics to be verified. Historical retention
@@ -140,3 +142,31 @@ one measured credit. Full bin/ci passed with 32 RSpec examples and all security
 checks. The historical TLS blocker is resolved; M00's other unchecked criteria,
 including seven-day evidence and retention rights, remain pending.
 Reference: https://github.com/ruby/openssl/issues/952
+
+## Collection update
+
+Run `bin/rails twelve_data:collect` for one bounded cycle. It orders pairs by
+oldest request so quota pauses do not starve later combinations. Repeat on the
+next minute to continue coverage. Successful H1/H4 requests are due only after
+their observed next close plus a 60-second publication grace period. H4 is not
+fetched every hour. Overlapping collection processes return already_running;
+a session advisory lock is released in ensure. No scheduler or background
+production worker was enabled. Stop collection by ceasing task invocations;
+resume uses persisted request/evaluation evidence. Do not infer market closure
+from absent data. Collection failures remain observable and M00 cannot pass
+until the closure policy and observation window are verified.
+
+`bin/rails 'twelve_data:catalogue[EUR/USD]'` validates a single catalogue symbol
+with the same retry/quota controls. Catalogue records have no candle interval
+and do not contribute candle coverage. Test the other six symbols explicitly.
+A live EUR/USD catalogue request succeeded, with credit headers absent (unknown).
+Live NZD/USD H4, EUR/USD H4 and GBP/USD H1 requests succeeded. Their usage headers
+were 1, 2 and 3 with remaining values 7, 6 and 5, establishing cumulative minute
+usage. Accounting now reserves documented one-credit requests and preserves raw
+headers separately instead of incorrectly summing cumulative usage. The report
+labels these as latest_minute_credits_used, not measured request credit totals.
+
+Verification: 39 RSpec examples cover catalogue rejection, due selection,
+partial failure, cumulative credit accounting and concurrent PostgreSQL quota
+reservations. This does not yet prove all-seven live coverage, complete candle
+reproducibility, weekend closure handling or seven days of evidence.

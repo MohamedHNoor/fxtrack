@@ -6,7 +6,8 @@ class ProviderRequest < ApplicationRecord
 
   has_one :data_quality_metric
   validates :symbol, inclusion: { in: SYMBOLS }
-  validates :interval, inclusion: { in: INTERVALS }
+  validates :interval, inclusion: { in: INTERVALS }, if: -> { endpoint == "time_series" }
+  validates :interval, absence: true, if: -> { endpoint == "forex_pairs" }
   validates :endpoint, inclusion: { in: %w[time_series forex_pairs] }
   validates :status, inclusion: { in: STATUSES }
   validates :requested_at, presence: true
