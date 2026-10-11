@@ -58,14 +58,15 @@ and installed dependencies before adding machinery.
 - Build: `bin/rails assets:precompile`
 - Production server: `RAILS_ENV=production bin/rails server`
 - Lint: `bin/rubocop`
-- Verify: `bin/ci` (existing Rails setup, lint, and security checks)
+- Tests: `bundle exec rspec` (RSpec unit and request specs)
+- Verify: `bin/ci` (Rails setup, tests, lint, and security checks)
 - Database preparation: `bin/rails db:prepare`
 - Database migrations: `bin/rails db:migrate`
 - Console: `bin/rails console`
 
 `bin/dev` installs Foreman if it is absent. `bin/ci` runs
 `bin/setup --skip-server`, which may install missing gems and prepares the
-database, followed by RuboCop, Bundler Audit, Importmap Audit, and Brakeman.
+database, followed by RSpec tests, RuboCop, Bundler Audit, Importmap Audit, and Brakeman.
 It requires a working Ruby/Bundler environment and PostgreSQL. Security audits
 may need network access. Production asset compilation and startup require the
 project's environment and credentials.
@@ -75,6 +76,5 @@ PostgreSQL socket and security-audit network endpoints. A denied database socket
 or failed Brakeman latest-release lookup is not a completed verification run;
 rerun with the required access and retain every configured check.
 
-No test command or browser test harness is configured. Rails test support is
-disabled in `config/application.rb`. Tests are not yet a gate. Configure testing
-explicitly before requiring test coverage.
+RSpec Rails tests are configured through `rails/test_unit/railtie`. Use the
+separate PostgreSQL test database. No browser test harness is configured.
