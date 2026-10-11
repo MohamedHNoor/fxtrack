@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_12_080000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_12_090000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -44,9 +44,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_12_080000) do
     t.integer "reproduced_count", default: 0, null: false
     t.integer "mismatch_count", default: 0, null: false
     t.integer "closure_count", default: 0, null: false
+    t.integer "invalid_count", default: 0, null: false
     t.index ["provider_request_id"], name: "index_data_quality_metrics_on_provider_request_id", unique: true
     t.check_constraint "closed_count >= 0 AND incomplete_count >= 0 AND duplicate_count >= 0 AND gap_count >= 0", name: "quality_counts_nonnegative"
     t.check_constraint "closure_count >= 0", name: "quality_closure_nonnegative"
+    t.check_constraint "invalid_count >= 0", name: "quality_invalid_nonnegative"
     t.check_constraint "reproduced_count >= 0 AND mismatch_count >= 0", name: "quality_reproduction_nonnegative"
   end
 

@@ -14,6 +14,24 @@ namespace :twelve_data do
     abort "Collection had failures; consult sanitized metrics" if result[:status] == "partial_failure"
   end
 
+  desc "Run one collection cycle per minute until interrupted (started by bin/dev)"
+  task watch: :environment do
+    $stdout.sync = true
+    puts "twelve_data:watch started; stop with Ctrl-C"
+    loop do
+      begin
+        result = TwelveData::Collection.new.run
+        puts({ at: Time.current.utc.iso8601, **result }.to_json) if result[:results].any? || result[:status] == "already_running"
+      rescue StandardError => error
+        # Foreman stops bin/dev when a process exits, so log and keep observing.
+        puts({ at: Time.current.utc.iso8601, status: "error", error: error.class.name }.to_json)
+      end
+      sleep 60 - Time.current.sec
+    end
+  rescue Interrupt
+    puts "twelve_data:watch stopped"
+  end
+
   desc "Measure historical depth unless measured within N hours (default 24): twelve_data:history[1]"
   task :history, [ :hours ] => :environment do |_, args|
     hours = Integer(args[:hours] || 24)
@@ -47,14 +65,14 @@ namespace :twelve_data do
       puts({ symbol: symbol, interval: interval, attempts: requests.count,
         reserved_credits: requests.count, latest_minute_credits_used: requests.order(:requested_at, :id).last&.credits_used, unknown_credit_header_attempts: requests.where(credits_used: nil).count,
         first_request_at: requests.minimum(:requested_at), last_request_at: requests.maximum(:requested_at),
-        quality: quality&.attributes&.slice("status", "latest_closed_at", "freshness_seconds", "gap_count", "duplicate_count", "closure_count", "reproduced_count", "mismatch_count") }.to_json)
+        quality: quality&.attributes&.slice("status", "latest_closed_at", "freshness_seconds", "gap_count", "duplicate_count", "closure_count", "invalid_count", "reproduced_count", "mismatch_count") }.to_json)
     end
     ProviderRequest::SYMBOLS.product(ProviderRequest::INTERVALS).each do |symbol, interval|
       latest = ->(endpoint) { DataQualityMetric.joins(:provider_request).where(provider_requests: { symbol: symbol, interval: interval, endpoint: endpoint }).order(:evaluated_at, :id).last }
       earliest, window = latest.call("earliest_timestamp"), latest.call("time_series_history")
       span = window&.latest_closed_at && window.earliest_opened_at && ((window.latest_closed_at - window.earliest_opened_at) / 1.day).round(1)
       puts({ symbol: symbol, interval: interval, provider_earliest_timestamp: earliest&.earliest_opened_at,
-        history_window: window&.attributes&.slice("status", "earliest_opened_at", "latest_closed_at", "closed_count", "closure_count", "gap_count", "duplicate_count")&.merge("span_days" => span) }.to_json)
+        history_window: window&.attributes&.slice("status", "earliest_opened_at", "latest_closed_at", "closed_count", "closure_count", "invalid_count", "gap_count", "duplicate_count")&.merge("span_days" => span) }.to_json)
     end
     puts({ gate: "pending", historical_retention: "unresolved", closure_policy: "new_york_17_convention" }.to_json)
   end

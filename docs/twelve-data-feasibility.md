@@ -29,8 +29,8 @@ permits personal/internal uses on individual plans and prohibits redistribution
 and commercial third-party display.
 [Terms section 16](https://twelvedata.com/terms) makes retention subject to the
 subscription and provider restrictions. This does not establish a retention
-duration for this account. Historical price storage remains blocked until its
-applicable permission and duration are documented. Sanitized diagnostic metrics
+duration for this account. Historical price storage was blocked until reviewed; see the owner decision
+under Retention-rights review. Sanitized diagnostic metrics
 will exclude prices, raw responses and secrets.
 
 ## Account evidence
@@ -284,9 +284,15 @@ A GBP/USD H4 diagnostic (dates only) located all 43 missing slots:
 EUR/USD H4 is invalid. Its window contains three candles that break OHLC
 consistency: 2024-11-28 08:00 UTC (low above open or close), 2024-11-28 12:00
 UTC (high below open or close) and 2025-01-14 12:00 UTC (high below open or
-close). The evaluator rejects a whole window that contains an inconsistent
-candle, so no EUR/USD H4 depth figures are recorded. Any warm-up or storage
-design must handle provider candles that fail validation.
+close). At measurement time the evaluator rejected the whole window, so no
+EUR/USD H4 depth figures were recorded.
+
+Owner decision (2026-10-11 UTC): candles that fail validation are dropped and
+counted in invalid_count. Their slots then appear as gaps, they are never
+fingerprinted and must never be stored. Window-level contradictions (wrong
+metadata, future or unsorted timestamps, contradictory duplicates) and windows
+where every candle is invalid still reject the whole response. The 23:10 UTC
+revision check re-measures EUR/USD H4 under this rule.
 
 Cost note: the first history run re-requested failing windows every minute.
 Two defects caused this. Legacy metrics recorded before the closure rule ended
@@ -311,8 +317,8 @@ now passes on:
 2. A revision check: repeating the history windows hours later must show zero
    fingerprint mismatches. Run it with `bin/rails 'twelve_data:history[1]'`,
    which re-measures any combination not measured in the last hour.
-3. At least 48 hours of live collection during trading days, starting at the
-   2026-10-11 21:00 UTC reopen. Each combination must show reproduced closes
+3. At least 48 hours of cumulative live collection during trading hours,
+   starting after the 2026-10-11 21:00 UTC reopen. Each combination must show reproduced closes
    with no mismatches, current freshness during trading hours, request counts
    within budget and recorded timeout/429/retry outcomes.
 4. The unchanged licensing and retention review.
@@ -320,7 +326,67 @@ now passes on:
 A live weekend closure observation under the New York 17:00 rule continues
 after the window. It does not block progression; a failure reopens M00.
 
-Live collection runs from a local crontab entry invoking
-`bin/rails twelve_data:collect` every minute, logging to `log/collect.log`.
-Remove the entry with `crontab -e` to stop; collection resumes from persisted
-evidence when re-added. The Mac must stay awake and online.
+Live collection runs only while the developer is working: `bin/dev` starts a
+`collect` process (`bin/rails twelve_data:watch`) that runs one collection cycle
+per minute and stops with the dev server. No cron job or background worker is
+installed. The 48 hours are therefore cumulative active collection during
+trading hours. Periods with `bin/dev` stopped are operator gaps, not provider
+gaps: on restart, collection fetches whatever is due and reproducibility
+compares overlapping candles, but candles that closed and aged out of the
+8-candle window while stopped are not observed live. Run
+`bin/rails twelve_data:watch` on its own to collect without the web server.
+
+## Retention-rights review
+
+Reviewed on 2026-10-11 (UTC) against the [Terms of Use](https://twelvedata.com/terms)
+(last updated 2026-01-01) and the
+[commercial and personal usage article](https://support.twelvedata.com/en/articles/5332349-commercial-and-personal-usage)
+(updated 2026-08-04). This is an engineering summary of the published text,
+not legal advice. The decision belongs to the owner.
+
+### What the sources say
+
+| Question | Source text | Effect on fxtrack |
+| --- | --- | --- |
+| Is a private owner-only app allowed on Basic? | Individual plans are "strictly for personal or internal use"; acceptable uses include "internal tools for personal or organizational use". | Fits, provided only the owner sees the data. |
+| May data be stored? | §2.2(a): "Access, receive, process, and store Data solely for Internal Use." | Yes, for internal use. |
+| For how long? | §2.3(g) prohibits storing or caching "beyond permitted timeframes specified in the Documentation". §16.1(a): retain "for duration permitted by subscription". | No timeframe was found in the documentation or support articles. Open question. |
+| What happens on cancellation? | §12.5(b) and §16.2(a): delete all Data within 30 days; §16.2(b): certify deletion on request. | A deletion procedure is required. |
+| Who may see it? | §2.2(b): display to Authorized Users. Individual plans prohibit "commercial display of data to third parties" and redistribution (§2.3(b)). | Owner UI, charts, email and Telegram to the owner are allowed. Public pages must not show provider prices. |
+| Indicators, signals and backtests | §2.2(c) and §6.2: the customer owns Derived Data that "cannot be reverse-engineered to recreate the original Data". §2.3(f) bars derivative financial products without permission. Backtesting is not mentioned. | Signals and indicators are Derived Data. Raw candles, charts and backtest inputs remain provider Data under the retention limits. |
+| Third-party sources | §3.1(d) and §8.2(e): the customer must follow data-source restrictions. ASX data is internal-only on every tier. | No forex-specific source restriction was found. |
+
+### Implications for later milestones
+
+- M01 landing page: the product preview must use illustrative or fixture
+  data, never live or stored Twelve Data prices, because the page is public.
+- M03 charts, M07 signals and M08 alerts: allowed for the owner alone. Alerts
+  must not be forwarded to other people or channels.
+- M03/M11 candle storage: allowed for internal use while the subscription is
+  active, subject to the unresolved documentation timeframe.
+- Cancellation: add a documented task that deletes all stored candles within
+  30 days of cancelling. Keyed fingerprints and quality metrics are Derived
+  Data and may stay.
+
+### Owner decision
+
+On 2026-10-11 (UTC) the owner chose to record an interpretation instead of
+waiting for a written answer from Twelve Data. The accepted interpretation:
+
+- fxtrack may store Twelve Data candles in its own database for internal,
+  owner-only use for as long as the subscription is active. This relies on
+  §2.2(a) and §16.1(a), because no shorter timeframe was found in the
+  Documentation referenced by §2.3(g).
+- All stored candles are deleted within 30 days of the subscription ending,
+  as §12.5(b) and §16.2(a) require. The task that stores candles must ship
+  with a documented deletion task.
+- Stored data is never displayed to anyone other than the owner, never
+  redistributed and never used on public pages.
+
+Accepted risk: if the Documentation does specify a shorter storage or caching
+timeframe, fxtrack would be out of compliance until it adopts that limit. The
+owner accepts this risk. Re-check the Terms and support articles whenever
+storage behaviour changes, and adopt any published timeframe immediately.
+
+This resolves the M00 rights review. M00 itself stores no candle prices;
+persistence arrives with the milestones that need it, under this decision.

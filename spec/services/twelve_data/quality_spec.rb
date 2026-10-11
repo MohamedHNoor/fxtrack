@@ -96,3 +96,24 @@ RSpec.describe TwelveData::Quality, "market closure" do
     expect(evaluate(Time.utc(2026, 10, 12, 5), "4h", stamps)).to include(status: "valid", gap_count: 0, closed_count: 4)
   end
 end
+
+RSpec.describe TwelveData::Quality, "invalid candles" do
+  let(:now) { Time.utc(2026, 10, 12, 12) }
+  let(:bar) { { "datetime" => "2026-10-12 08:00:00", "open" => "1.1", "high" => "1.3", "low" => "1.0", "close" => "1.2" } }
+
+  def evaluate(bars)
+    payload = { "meta" => { "symbol" => "EUR/USD", "interval" => "1h", "type" => "Physical Currency" }, "values" => bars }
+    described_class.new(clock: -> { now }, fingerprint_key: "a" * 32).evaluate(payload, symbol: "EUR/USD", interval: "1h")
+  end
+
+  it "drops and counts an inconsistent candle, leaving its slot as a gap" do
+    bars = [ bar, bar.merge("datetime" => "2026-10-12 09:00:00", "high" => "1.15"), bar.merge("datetime" => "2026-10-12 10:00:00") ]
+    result = evaluate(bars)
+    expect(result).to include(status: "gaps", invalid_count: 1, closed_count: 2, gap_count: 1)
+    expect(result[:fingerprints].keys).to eq([ Time.utc(2026, 10, 12, 8), Time.utc(2026, 10, 12, 10) ])
+  end
+
+  it "rejects a window where every candle is invalid" do
+    expect(evaluate([ bar.merge("low" => "2") ])).to include(status: "invalid", invalid_count: 1)
+  end
+end

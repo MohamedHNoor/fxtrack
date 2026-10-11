@@ -13,15 +13,18 @@ module TwelveData
     def evaluate(payload, symbol:, interval:)
       duration = DURATIONS.fetch(interval)
       now = @clock.call.utc
-      attributes = { evaluated_at: now, status: "invalid", closed_count: 0, closure_count: 0, incomplete_count: 0, duplicate_count: 0, gap_count: 0 }
+      attributes = { evaluated_at: now, status: "invalid", closed_count: 0, closure_count: 0, invalid_count: 0, incomplete_count: 0, duplicate_count: 0, gap_count: 0 }
       meta = payload["meta"]
       return attributes unless meta.is_a?(Hash) && meta["symbol"] == symbol && meta["interval"] == interval && meta["type"] == "Physical Currency"
       values = payload["values"]
       return attributes unless values.is_a?(Array) && values.size <= @max_values
       return attributes.merge(status: "empty") if values.empty?
 
-      bars = values.map { |value| parse_bar(value) }
-      return attributes if bars.any?(&:nil?) || bars.any? { |bar| bar[:opened_at] > now }
+      # Owner policy: drop and count candles that fail validation; their slots
+      # surface as gaps. Window-level contradictions still reject everything.
+      bars = values.filter_map { |value| parse_bar(value) }
+      attributes[:invalid_count] = values.size - bars.size
+      return attributes if bars.empty? || bars.any? { |bar| bar[:opened_at] > now }
       times = bars.map { |bar| bar[:opened_at] }
       return attributes unless times == times.sort
       grouped = bars.group_by { |bar| bar[:opened_at] }
