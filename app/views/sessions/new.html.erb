@@ -1,13 +1,20 @@
 <% content_for :title, "Owner login · FXTrack" %>
 <% content_for :head do %><meta name="robots" content="noindex"><% end %>
 
-<%= render "shared/public_header" %>
-
-<main class="mx-auto max-w-md px-6 py-16">
-  <section class="rounded-3xl bg-white p-10 text-center text-auth-fg shadow-2xl shadow-black/40">
-    <%= image_tag "fxtrack-logo.svg", alt: "FXTrack", width: 340, height: 110, class: "mx-auto mb-6 h-auto w-[185px]" %>
-    <h1 class="mb-3 text-2xl font-bold">Owner login</h1>
-    <p class="text-auth-muted">Owner sign-in is not available yet. It arrives with owner authentication.</p>
-    <%= link_to "Back to home", root_path, class: "button mt-8 w-full border-auth-line bg-white text-auth-fg" %>
-  </section>
-</main>
+<%= render layout: "shared/auth_card", locals: { heading: "Welcome back", subheading: "Log in to your private FXTrack workspace" } do %>
+  <%= form_with url: login_path, class: "grid gap-5" do |form| %>
+    <div>
+      <%= form.label :email_address, "Email address", class: "auth-label" %>
+      <%= form.email_field :email_address, required: true, autofocus: true, autocomplete: "username", value: params[:email_address], class: "auth-input" %>
+    </div>
+    <div>
+      <%= form.label :password, class: "auth-label" %>
+      <%= form.password_field :password, required: true, autocomplete: "current-password", maxlength: 72, class: "auth-input" %>
+    </div>
+    <%= form.submit "Log in", class: "button button-primary w-full cursor-pointer" %>
+  <% end %>
+  <div class="mt-5 flex justify-between gap-4 text-sm text-auth-muted">
+    <span>Owner access only</span>
+    <%= link_to "Forgot password?", new_password_path, class: "font-medium text-accent hover:underline" %>
+  </div>
+<% end %>

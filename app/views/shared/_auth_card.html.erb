@@ -1,0 +1,29 @@
+<%= render "shared/public_header" %>
+
+<main class="mx-auto grid max-w-[1100px] items-center gap-16 px-4 py-4 md:px-6 md:py-16 lg:grid-cols-[1fr_450px]">
+  <section class="hidden lg:block">
+    <span class="badge">YOUR PERSONAL FOREX ASSISTANT</span>
+    <h1 class="my-5 max-w-lg text-hero font-bold tracking-tighter">Trade with<br><span class="text-positive">confidence.</span></h1>
+    <p class="mb-8 text-lg text-muted">Technical setups, configurable risk and a complete journal, in one private workspace.</p>
+    <ul class="card divide-y divide-line border-l-3 border-l-positive py-2">
+      <% ["Multi-timeframe setups", "Planned position sizing", "Email and Telegram alerts", "Record completed trades"].each do |point| %>
+        <li class="py-4"><span class="mr-2 text-positive" aria-hidden="true">✓</span><%= point %></li>
+      <% end %>
+    </ul>
+  </section>
+
+  <section class="motion-rise rounded-3xl bg-white px-6 py-8 text-auth-fg shadow-2xl shadow-black/40 md:px-10 md:py-12">
+    <%= image_tag "fxtrack-logo.svg", alt: "FXTrack", width: 340, height: 110, class: "mx-auto mb-6 h-auto w-[185px]" %>
+    <h2 class="text-center text-2xl font-bold"><%= heading %></h2>
+    <p class="mt-2 mb-6 text-center text-auth-muted"><%= subheading %></p>
+
+    <% if alert %>
+      <p role="alert" class="mb-5 rounded-lg border border-negative/40 bg-negative/10 px-4 py-3 text-sm font-medium text-auth-error"><%= alert %></p>
+    <% end %>
+    <% if notice %>
+      <p role="status" class="mb-5 rounded-lg border border-positive/40 bg-positive/10 px-4 py-3 text-sm font-medium text-auth-success"><%= notice %></p>
+    <% end %>
+
+    <%= yield %>
+  </section>
+</main>

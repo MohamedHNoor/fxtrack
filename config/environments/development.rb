@@ -37,6 +37,9 @@ Rails.application.configure do
   # Make template changes take effect immediately.
   config.action_mailer.perform_caching = false
 
+  # Write mail to tmp/mails instead of sending it; no provider is configured yet.
+  config.action_mailer.delivery_method = :file
+
   # Set localhost to be used by links generated in mailer templates.
   config.action_mailer.default_url_options = { host: "localhost", port: 3000 }
 

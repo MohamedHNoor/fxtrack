@@ -11,7 +11,7 @@ RSpec.describe "Landing page" do
 
   it "offers a login call to action and no public signup" do
     get root_path
-    expect(response.body).to include(%(href="#{new_session_path}"))
+    expect(response.body).to include(%(href="#{login_path}"))
     expect(response.body).not_to match(/sign ?up|register|create an account now/i)
   end
 
@@ -31,7 +31,7 @@ RSpec.describe "Landing page" do
   end
 
   it "keeps the login placeholder out of search indexes" do
-    get new_session_path
+    get login_path
     expect(response).to have_http_status(:ok)
     expect(response.body).to include('name="robots" content="noindex"')
   end

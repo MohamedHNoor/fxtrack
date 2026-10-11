@@ -63,6 +63,7 @@ and installed dependencies before adding machinery.
 - Database preparation: `bin/rails db:prepare`
 - Database migrations: `bin/rails db:migrate`
 - Console: `bin/rails console`
+- Owner provisioning: `bin/rails "owner:create[owner@example.com]"` (interactive; see `docs/authentication.md`)
 
 `bin/dev` installs Foreman if it is absent. `bin/ci` runs
 `bin/setup --skip-server`, which may install missing gems and prepares the

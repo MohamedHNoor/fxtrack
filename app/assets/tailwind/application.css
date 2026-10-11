@@ -26,6 +26,8 @@
   --color-auth-fg: #132440;
   --color-auth-muted: #526e91;
   --color-auth-line: #cddced;
+  --color-auth-error: #b4232f;
+  --color-auth-success: #05683a;
 
   --text-hero: clamp(2.5rem, 5vw, 4.75rem);
   --text-hero--line-height: 1.05;
@@ -59,6 +61,14 @@
 
   .card {
     @apply min-w-0 rounded-card border border-line bg-linear-130 from-surface to-canvas p-6 shadow-lg shadow-black/40;
+  }
+
+  .auth-label {
+    @apply mb-2 block text-sm text-auth-muted;
+  }
+
+  .auth-input {
+    @apply w-full rounded-lg border border-auth-line bg-white px-4 py-3 text-auth-fg focus:border-accent;
   }
 
   .badge {

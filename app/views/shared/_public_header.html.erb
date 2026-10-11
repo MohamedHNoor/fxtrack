@@ -11,7 +11,7 @@
   </nav>
 
   <div class="flex items-center gap-3">
-    <%= link_to "Login", new_session_path, class: "button button-primary px-4 py-3 md:px-6 md:py-4" %>
+    <%= link_to "Login", login_path, class: "button button-primary px-4 py-3 md:px-6 md:py-4" %>
     <button type="button" class="button px-3 py-3 md:hidden" aria-haspopup="dialog" aria-expanded="false" aria-controls="mobile-menu"
             data-nav-menu-target="button" data-action="nav-menu#open">
       <span class="sr-only">Open menu</span>
@@ -35,7 +35,7 @@
                 style: "--delay: #{120 + index * 60}ms", data: { action: "nav-menu#close" } %>
         <% end %>
       </nav>
-      <%= link_to "Login", new_session_path, class: "button button-primary mt-auto w-full" %>
+      <%= link_to "Login", login_path, class: "button button-primary mt-auto w-full" %>
     </div>
   </dialog>
 </header>

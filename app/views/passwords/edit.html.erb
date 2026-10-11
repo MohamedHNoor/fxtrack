@@ -1,0 +1,18 @@
+<% content_for :title, "Choose a new password · FXTrack" %>
+<% content_for :head do %><meta name="robots" content="noindex"><meta name="referrer" content="no-referrer"><% end %>
+
+<%= render layout: "shared/auth_card", locals: { heading: "Create a new password", subheading: "At least 12 characters. Other devices will be signed out." } do %>
+  <%= form_with url: password_path(params[:token]), method: :patch, class: "grid gap-5" do |form| %>
+    <%# Lets password managers attach the new password to the owner account. %>
+    <input type="text" autocomplete="username" value="<%= @user.email_address %>" hidden>
+    <div>
+      <%= form.label :password, "New password", class: "auth-label" %>
+      <%= form.password_field :password, required: true, autofocus: true, autocomplete: "new-password", minlength: 12, maxlength: 72, class: "auth-input" %>
+    </div>
+    <div>
+      <%= form.label :password_confirmation, "Confirm new password", class: "auth-label" %>
+      <%= form.password_field :password_confirmation, required: true, autocomplete: "new-password", minlength: 12, maxlength: 72, class: "auth-input" %>
+    </div>
+    <%= form.submit "Update password", class: "button button-primary w-full cursor-pointer" %>
+  <% end %>
+<% end %>

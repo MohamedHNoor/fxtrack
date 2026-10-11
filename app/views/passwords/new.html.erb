@@ -1,0 +1,15 @@
+<% content_for :title, "Reset password · FXTrack" %>
+<% content_for :head do %><meta name="robots" content="noindex"><% end %>
+
+<%= render layout: "shared/auth_card", locals: { heading: "Reset your password", subheading: "We will email a link to the owner address" } do %>
+  <%= form_with url: passwords_path, class: "grid gap-5" do |form| %>
+    <div>
+      <%= form.label :email_address, "Email address", class: "auth-label" %>
+      <%= form.email_field :email_address, required: true, autofocus: true, autocomplete: "username", class: "auth-input" %>
+    </div>
+    <%= form.submit "Send reset link", class: "button button-primary w-full cursor-pointer" %>
+  <% end %>
+  <div class="mt-5 text-sm">
+    <%= link_to "Back to login", login_path, class: "font-medium text-accent hover:underline" %>
+  </div>
+<% end %>
