@@ -14,6 +14,23 @@ namespace :twelve_data do
     abort "Collection had failures; consult sanitized metrics" if result[:status] == "partial_failure"
   end
 
+  desc "Measure historical depth unless measured within N hours (default 24): twelve_data:history[1]"
+  task :history, [ :hours ] => :environment do |_, args|
+    hours = Integer(args[:hours] || 24)
+    abort "Hours must be between 1 and 24" unless (1..24).cover?(hours)
+    ProviderRequest::SYMBOLS.product(ProviderRequest::INTERVALS).each do |symbol, interval|
+      %w[earliest_timestamp time_series_history].each do |endpoint|
+        # Invalid data is a final answer for the window; only provider failures retry.
+        done = ProviderRequest.where(symbol: symbol, interval: interval, endpoint: endpoint, status: %w[success invalid_data])
+          .where(requested_at: hours.hours.ago..).exists?
+        next if done
+        status = TwelveData::Probe.new.run(symbol: symbol, interval: interval, endpoint: endpoint)
+        puts({ symbol: symbol, interval: interval, endpoint: endpoint, status: status }.to_json)
+        abort "Quota paused; rerun next minute to continue" if status == "quota_paused"
+      end
+    end
+  end
+
   desc "Run one bounded diagnostic probe: twelve_data:probe[EUR/USD,1h]"
   task :probe, [ :symbol, :interval ] => :environment do |_, args|
     abort "Provide a supported symbol and interval (1h or 4h)" unless args[:symbol] && args[:interval]
@@ -26,12 +43,19 @@ namespace :twelve_data do
   task report: :environment do
     ProviderRequest::SYMBOLS.product(ProviderRequest::INTERVALS).each do |symbol, interval|
       requests = ProviderRequest.where(symbol: symbol, interval: interval, endpoint: "time_series")
-      quality = DataQualityMetric.joins(:provider_request).where(provider_requests: { symbol: symbol, interval: interval }).order(:evaluated_at, :id).last
+      quality = DataQualityMetric.joins(:provider_request).where(provider_requests: { symbol: symbol, interval: interval, endpoint: "time_series" }).order(:evaluated_at, :id).last
       puts({ symbol: symbol, interval: interval, attempts: requests.count,
         reserved_credits: requests.count, latest_minute_credits_used: requests.order(:requested_at, :id).last&.credits_used, unknown_credit_header_attempts: requests.where(credits_used: nil).count,
         first_request_at: requests.minimum(:requested_at), last_request_at: requests.maximum(:requested_at),
         quality: quality&.attributes&.slice("status", "latest_closed_at", "freshness_seconds", "gap_count", "duplicate_count", "closure_count", "reproduced_count", "mismatch_count") }.to_json)
     end
-    puts({ gate: "pending", historical_retention: "unresolved", closure_policy: "unverified" }.to_json)
+    ProviderRequest::SYMBOLS.product(ProviderRequest::INTERVALS).each do |symbol, interval|
+      latest = ->(endpoint) { DataQualityMetric.joins(:provider_request).where(provider_requests: { symbol: symbol, interval: interval, endpoint: endpoint }).order(:evaluated_at, :id).last }
+      earliest, window = latest.call("earliest_timestamp"), latest.call("time_series_history")
+      span = window&.latest_closed_at && window.earliest_opened_at && ((window.latest_closed_at - window.earliest_opened_at) / 1.day).round(1)
+      puts({ symbol: symbol, interval: interval, provider_earliest_timestamp: earliest&.earliest_opened_at,
+        history_window: window&.attributes&.slice("status", "earliest_opened_at", "latest_closed_at", "closed_count", "closure_count", "gap_count", "duplicate_count")&.merge("span_days" => span) }.to_json)
+    end
+    puts({ gate: "pending", historical_retention: "unresolved", closure_policy: "new_york_17_convention" }.to_json)
   end
 end

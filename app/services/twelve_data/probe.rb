@@ -10,16 +10,17 @@ module TwelveData
 
     def run(symbol:, interval: nil, endpoint: "time_series")
       raise ArgumentError, "Unsupported forex symbol" unless ProviderRequest::SYMBOLS.include?(symbol)
-      raise ArgumentError, "Unsupported interval" if endpoint == "time_series" && !ProviderRequest::INTERVALS.include?(interval)
-      raise ArgumentError, "Unsupported endpoint" unless %w[time_series forex_pairs].include?(endpoint)
+      raise ArgumentError, "Unsupported endpoint" unless ProviderRequest::CANDLE_ENDPOINTS.include?(endpoint) || endpoint == "forex_pairs"
+      raise ArgumentError, "Unsupported interval" if endpoint != "forex_pairs" && !ProviderRequest::INTERVALS.include?(interval)
       raise ArgumentError, "Catalogue has no interval" if endpoint == "forex_pairs" && interval
       3.times do |attempt|
         request = reserve(symbol, interval, endpoint)
         return "quota_paused" unless request
-        response = if endpoint == "time_series"
-          @client.time_series(symbol: symbol, interval: interval)
-        else
-          @client.forex_pairs(symbol: symbol)
+        response = case endpoint
+        when "time_series" then @client.time_series(symbol: symbol, interval: interval)
+        when "time_series_history" then @client.time_series(symbol: symbol, interval: interval, outputsize: Client::HISTORY_SIZE)
+        when "earliest_timestamp" then @client.earliest_timestamp(symbol: symbol, interval: interval)
+        else @client.forex_pairs(symbol: symbol)
         end
         persist(request, response, symbol, interval)
         return request.status unless retryable?(response) && attempt < 2
@@ -60,20 +61,44 @@ module TwelveData
           entries = response.payload["data"]
           listed = entries.is_a?(Array) && entries.any? { |entry| entry.is_a?(Hash) && entry["symbol"] == symbol }
           request.update!(status: "invalid_data", error_code: "invalid_response") unless listed
+        elsif response.status == "success" && request.endpoint == "earliest_timestamp"
+          record_earliest(request, response.payload)
         elsif response.status == "success"
-          quality = Quality.new(clock: @clock).evaluate(response.payload, symbol: symbol, interval: interval)
-          previous = DataQualityMetric.joins(:provider_request)
-            .where(provider_requests: { symbol: symbol, interval: interval, endpoint: "time_series" })
-            .where.not(latest_closed_at: nil).maximum(:latest_closed_at)
+          history = request.endpoint == "time_series_history"
+          quality = Quality.new(clock: @clock, max_values: history ? Client::HISTORY_SIZE : 8)
+            .evaluate(response.payload, symbol: symbol, interval: interval)
+          previous = latest_trading_close(symbol, interval)
           if previous && quality[:latest_closed_at] && quality[:latest_closed_at] < previous
             quality[:status] = "invalid"
           end
           fingerprints = quality.delete(:fingerprints) || {}
           reproduce(request, fingerprints, quality) unless quality[:status] == "invalid"
           request.create_data_quality_metric!(quality)
-          request.update!(status: "invalid_data", error_code: "invalid_response") unless %w[valid closed].include?(quality[:status])
+          # Long windows span holidays, so gaps are measured evidence, not a failed request.
+          accepted = history ? %w[valid closed gaps] : %w[valid closed]
+          request.update!(status: "invalid_data", error_code: "invalid_response") unless accepted.include?(quality[:status])
         end
       end
+    end
+
+    # Metrics recorded before the closure rule can end on a weekend candle; only a
+    # trading close is a valid reference for detecting timestamp regression.
+    def latest_trading_close(symbol, interval)
+      duration = Quality::DURATIONS.fetch(interval)
+      DataQualityMetric.joins(:provider_request)
+        .where(provider_requests: { symbol: symbol, interval: interval, endpoint: "time_series" })
+        .where.not(latest_closed_at: nil).order(latest_closed_at: :desc).limit(MarketHours::MAX_STEPS)
+        .pluck(:latest_closed_at).find { |closed_at| !MarketHours.closed?(closed_at - duration) }
+    end
+
+    def record_earliest(request, payload)
+      unix = payload["unix_time"]
+      now = @clock.call.utc
+      unless unix.is_a?(Integer) && unix.positive? && unix <= now.to_i
+        return request.update!(status: "invalid_data", error_code: "invalid_response")
+      end
+      request.create_data_quality_metric!(status: "valid", evaluated_at: now, earliest_opened_at: Time.at(unix).utc,
+        closed_count: 0, incomplete_count: 0, duplicate_count: 0, gap_count: 0)
     end
 
     # Inserts first so concurrent probes compare against one stored digest; the

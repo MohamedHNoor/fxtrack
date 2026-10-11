@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_12_070000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_12_080000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -63,9 +63,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_12_070000) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["requested_at"], name: "index_provider_requests_on_requested_at"
+    t.check_constraint "(endpoint::text = ANY (ARRAY['time_series'::character varying, 'time_series_history'::character varying, 'earliest_timestamp'::character varying]::text[])) AND (\"interval\"::text = ANY (ARRAY['1h'::character varying, '4h'::character varying]::text[])) AND \"interval\" IS NOT NULL OR endpoint::text = 'forex_pairs'::text AND \"interval\" IS NULL", name: "provider_endpoint_interval"
     t.check_constraint "credits_left IS NULL OR credits_left >= 0", name: "provider_credits_left_nonnegative"
     t.check_constraint "credits_used IS NULL OR credits_used >= 0", name: "provider_credits_nonnegative"
-    t.check_constraint "endpoint::text = 'time_series'::text AND (\"interval\"::text = ANY (ARRAY['1h'::character varying, '4h'::character varying]::text[])) AND \"interval\" IS NOT NULL OR endpoint::text = 'forex_pairs'::text AND \"interval\" IS NULL", name: "provider_endpoint_interval"
   end
 
   add_foreign_key "candle_fingerprints", "provider_requests"

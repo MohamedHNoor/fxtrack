@@ -37,4 +37,22 @@ RSpec.describe TwelveData::Client do
     client = described_class.new(key: -> { "secret" }, transport: ->(*) { raise Net::ReadTimeout, "secret" })
     expect(client.time_series(symbol: "EUR/USD", interval: "1h").error_code).to eq("timeout")
   end
+
+  it "requests a bounded history window and accepts its larger body" do
+    body = { status: "ok", values: [ { datetime: "x" * 300_000 } ] }.to_json
+    allow(http).to receive(:body).and_return(body)
+    queries = []
+    client = described_class.new(key: -> { "secret" }, transport: ->(uri, _) { queries << uri.query; http })
+    expect(client.time_series(symbol: "EUR/USD", interval: "4h", outputsize: 5000).status).to eq("success")
+    expect(queries.last).to include("outputsize=5000")
+    expect(client.time_series(symbol: "EUR/USD", interval: "4h").error_code).to eq("invalid_response")
+    expect { client.time_series(symbol: "EUR/USD", interval: "4h", outputsize: 100) }.to raise_error(ArgumentError)
+  end
+
+  it "accepts earliest_timestamp bodies without a status but not explicit errors" do
+    allow(http).to receive(:body).and_return('{"datetime":"2005-01-03 00:00:00","unix_time":1104710400}')
+    expect(client.earliest_timestamp(symbol: "EUR/USD", interval: "1h").payload["unix_time"]).to eq(1_104_710_400)
+    allow(http).to receive(:body).and_return('{"status":"error","code":400}')
+    expect(client.earliest_timestamp(symbol: "EUR/USD", interval: "1h").error_code).to eq("provider_error")
+  end
 end

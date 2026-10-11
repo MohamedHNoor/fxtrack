@@ -49,7 +49,8 @@ continuous absence of other consumers, or a completed observation window.
 - All seven pairs at H1/H4, closed-candle reproducibility and historical depth.
 - Freshness/gaps, weekend closure evidence and quote/spread limitations.
 - Measured credits, bounded retry/timeout/429 evidence and redaction checks.
-- At least seven elapsed days of traceable observations including closures.
+- History windows for every pair/interval, a repeated-fetch revision check and
+  at least 48 hours of live trading-day collection (see Acceptance window).
 
 ## Current local checks
 
@@ -160,7 +161,10 @@ until the observation window is verified.
 
 `bin/rails 'twelve_data:catalogue[EUR/USD]'` validates a single catalogue symbol
 with the same retry/quota controls. Catalogue records have no candle interval
-and do not contribute candle coverage. Test the other six symbols explicitly.
+and do not contribute candle coverage. On 2026-10-11 GBP/USD, USD/JPY, USD/CHF,
+USD/CAD, AUD/USD and NZD/USD were also validated live, so all seven configured
+symbols are confirmed in the catalogue. Catalogue responses carried no credit
+headers; their cost is recorded as unknown.
 A live EUR/USD catalogue request succeeded, with credit headers absent (unknown).
 Live NZD/USD H4, EUR/USD H4 and GBP/USD H1 requests succeeded. Their usage headers
 were 1, 2 and 3 with remaining values 7, 6 and 5, establishing cumulative minute
@@ -232,3 +236,91 @@ Verification: 54 RSpec examples, adding daylight and standard time boundaries,
 Friday close, missing final Friday candle, weekend gap suppression, weekend-only
 responses and weekend collection scheduling. Live trading-hours reproducibility
 evidence is scheduled after the 2026-10-11 21:00 UTC reopen.
+
+## Historical depth update
+
+`bin/rails twelve_data:history` measures each pair and interval at most once per
+UTC day. It records two requests per combination, each one documented credit:
+
+- `earliest_timestamp`: the provider's earliest available candle, stored as the
+  metric's earliest_opened_at. Its documented body has no status field, so only
+  an explicit error status fails.
+- `time_series_history`: a 5000-candle time_series window (body limit 1 MB),
+  evaluated with the normal quality rules. Gaps are accepted as measured
+  evidence because long windows span holidays. Closed trading candles are
+  fingerprinted; no prices are stored.
+
+Collection ignores both endpoints. Invalid data is final for the day; only
+provider failures are retried on the next run. The report task prints one
+history line per combination.
+
+Live results on 2026-10-11:
+
+| Measure | H1 (all seven pairs) | H4 (six pairs) |
+| --- | --- | --- |
+| Provider earliest timestamp | 2020-01-29 to 2020-01-30 | 2020-01-29 to 2020-01-30 |
+| 5000-candle window starts | 2026-03-17 08:00 UTC | 2023-11-23 to 2023-11-30 |
+| Window span | 206.5 days | about 1045 to 1052 days |
+| Trading candles | 3565 | 4441 to 4470 |
+| Weekend candles | 1434 | 529 to 558 |
+| Missing trading slots | 0 | 41 to 45 |
+| Duplicates / mismatches | 0 / 0 | 0 / 0 |
+
+Weekend candles make up about 29% of an H1 window, so 5000 H1 candles cover
+only about 30 trading weeks. Deeper warm-up needs paged requests using
+start_date/end_date, one credit each.
+
+A GBP/USD H4 diagnostic (dates only) located all 43 missing slots:
+
+- Holidays: 24 and 25 December and 31 December/1 January each year.
+- Friday 20:00 UTC every week from December 2023 to February 2024. That slot
+  opens at 15:00 New York standard time and is present in later winters, so
+  this is a gap in the provider's older history.
+- A 21:00 UTC slot on the first Sunday of October in 2024, 2025 and 2026. It
+  is off the normal four-hour grid, which suggests a brief provider H4
+  alignment shift. That date coincides with the start of Australian and New
+  Zealand daylight saving; the cause is unconfirmed.
+
+EUR/USD H4 is invalid. Its window contains three candles that break OHLC
+consistency: 2024-11-28 08:00 UTC (low above open or close), 2024-11-28 12:00
+UTC (high below open or close) and 2025-01-14 12:00 UTC (high below open or
+close). The evaluator rejects a whole window that contains an inconsistent
+candle, so no EUR/USD H4 depth figures are recorded. Any warm-up or storage
+design must handle provider candles that fail validation.
+
+Cost note: the first history run re-requested failing windows every minute.
+Two defects caused this. Legacy metrics recorded before the closure rule ended
+on Sunday weekend candles, and the regression check treated them as later
+trading closes. Separately, only successes stopped a rerun. About 28 credits
+were spent on repeats. The regression check now ignores weekend closes, and
+invalid data stops reruns. Requests on 2026-10-11 totalled 107, within the
+720-request local daily budget.
+
+Verification: 61 RSpec examples, adding history window size limits,
+earliest_timestamp parsing and rejection, holiday-gap acceptance, collection
+isolation and legacy weekend-close regression handling.
+
+## Acceptance window
+
+On 2026-10-11 (UTC) the owner replaced the seven-elapsed-day requirement. M00
+now passes on:
+
+1. History windows for all fourteen pair/interval combinations. These evidence
+   weekend and holiday behaviour, gaps, duplicates, OHLC validity and depth
+   over months to years, not days.
+2. A revision check: repeating the history windows hours later must show zero
+   fingerprint mismatches. Run it with `bin/rails 'twelve_data:history[1]'`,
+   which re-measures any combination not measured in the last hour.
+3. At least 48 hours of live collection during trading days, starting at the
+   2026-10-11 21:00 UTC reopen. Each combination must show reproduced closes
+   with no mismatches, current freshness during trading hours, request counts
+   within budget and recorded timeout/429/retry outcomes.
+4. The unchanged licensing and retention review.
+
+A live weekend closure observation under the New York 17:00 rule continues
+after the window. It does not block progression; a failure reopens M00.
+
+Live collection runs from a local crontab entry invoking
+`bin/rails twelve_data:collect` every minute, logging to `log/collect.log`.
+Remove the entry with `crontab -e` to stop; collection resumes from persisted
+evidence when re-added. The Mac must stay awake and online.

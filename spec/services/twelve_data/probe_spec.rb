@@ -131,3 +131,53 @@ RSpec.describe "Weekend probing" do
     expect(CandleFingerprint.count).to eq(0)
   end
 end
+
+RSpec.describe "Historical depth probing" do
+  let(:client) { instance_double(TwelveData::Client) }
+  let(:now) { Time.utc(2026, 10, 12, 12, 30) }
+
+  def success(payload)
+    TwelveData::Client::Response.new(status: "success", http_status: 200, credits_used: 1, credits_left: 7, error_code: nil, payload: payload, retry_after: nil)
+  end
+
+  def probe(endpoint)
+    TwelveData::Probe.new(client: client, clock: -> { now }).run(symbol: "EUR/USD", interval: "1h", endpoint: endpoint)
+  end
+
+  it "records the provider's earliest timestamp" do
+    allow(client).to receive(:earliest_timestamp).and_return(success("unix_time" => 1_104_710_400))
+    expect(probe("earliest_timestamp")).to eq("success")
+    expect(DataQualityMetric.last.earliest_opened_at).to eq(Time.utc(2005, 1, 3))
+  end
+
+  it "rejects a missing or future earliest timestamp" do
+    allow(client).to receive(:earliest_timestamp).and_return(success("unix_time" => now.to_i + 60), success({}))
+    expect(probe("earliest_timestamp")).to eq("invalid_data")
+    expect(probe("earliest_timestamp")).to eq("invalid_data")
+    expect(DataQualityMetric.count).to eq(0)
+  end
+
+  it "measures a long window with holiday gaps as successful evidence" do
+    hours = (0..11).map { |hour| Time.utc(2026, 10, 12, hour) } - [ Time.utc(2026, 10, 12, 5) ]
+    values = hours.map { |time| { "datetime" => time.strftime("%Y-%m-%d %H:%M:%S"), "open" => "1.1", "high" => "1.3", "low" => "1.0", "close" => "1.2" } }
+    payload = { "meta" => { "symbol" => "EUR/USD", "interval" => "1h", "type" => "Physical Currency" }, "values" => values }
+    expect(client).to receive(:time_series).with(symbol: "EUR/USD", interval: "1h", outputsize: 5000).and_return(success(payload))
+    expect(probe("time_series_history")).to eq("success")
+    expect(DataQualityMetric.last).to have_attributes(status: "gaps", gap_count: 1, closed_count: 11, earliest_opened_at: Time.utc(2026, 10, 12, 0))
+  end
+end
+
+RSpec.describe "Timestamp regression with legacy weekend closes" do
+  it "ignores a stored close that came from a weekend candle" do
+    legacy = ProviderRequest.create!(symbol: "EUR/USD", interval: "1h", endpoint: "time_series", requested_at: Time.utc(2026, 10, 11, 16, 5), status: "success")
+    legacy.create_data_quality_metric!(status: "valid", evaluated_at: legacy.requested_at, latest_closed_at: Time.utc(2026, 10, 11, 16),
+      closed_count: 7, incomplete_count: 0, duplicate_count: 0, gap_count: 0)
+    values = (18..23).map { |hour| { "datetime" => format("2026-10-09 %02d:00:00", hour), "open" => "1.1", "high" => "1.3", "low" => "1.0", "close" => "1.2" } }
+    payload = { "meta" => { "symbol" => "EUR/USD", "interval" => "1h", "type" => "Physical Currency" }, "values" => values }
+    client = instance_double(TwelveData::Client, time_series: TwelveData::Client::Response.new(status: "success", http_status: 200,
+      credits_used: 1, credits_left: 7, error_code: nil, payload: payload, retry_after: nil))
+    status = TwelveData::Probe.new(client: client, clock: -> { Time.utc(2026, 10, 11, 16, 30) }).run(symbol: "EUR/USD", interval: "1h")
+    expect(status).to eq("success")
+    expect(DataQualityMetric.last).to have_attributes(status: "closed", latest_closed_at: Time.utc(2026, 10, 9, 21))
+  end
+end

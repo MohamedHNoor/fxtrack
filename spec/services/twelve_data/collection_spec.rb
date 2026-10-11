@@ -59,3 +59,18 @@ RSpec.describe TwelveData::Collection, "market closure" do
     expect(called_at(Time.utc(2026, 10, 11, 22, 1))).to include(symbol: "EUR/USD", interval: "1h")
   end
 end
+
+RSpec.describe TwelveData::Collection, "history isolation" do
+  it "ignores history measurements when choosing due collection requests" do
+    now = Time.utc(2026, 10, 12, 12, 1)
+    request = ProviderRequest.create!(symbol: "EUR/USD", interval: "1h", endpoint: "time_series", requested_at: now - 120, status: "success")
+    request.create_data_quality_metric!(status: "valid", evaluated_at: now - 120, latest_closed_at: now - 61,
+      closed_count: 1, incomplete_count: 0, duplicate_count: 0, gap_count: 0)
+    ProviderRequest.create!(symbol: "EUR/USD", interval: "1h", endpoint: "time_series_history", requested_at: now - 30, status: "invalid_data")
+    probe = instance_double(TwelveData::Probe)
+    called = []
+    allow(probe).to receive(:run) { |**args| called << args; "success" }
+    described_class.new(probe: probe, clock: -> { now }).run
+    expect(called).not_to include(symbol: "EUR/USD", interval: "1h")
+  end
+end

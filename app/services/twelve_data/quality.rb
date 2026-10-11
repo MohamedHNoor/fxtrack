@@ -5,8 +5,8 @@ module TwelveData
   class Quality
     DURATIONS = { "1h" => 3600, "4h" => 14_400 }.freeze
 
-    def initialize(clock: -> { Time.current }, fingerprint_key: nil)
-      @clock = clock
+    def initialize(clock: -> { Time.current }, fingerprint_key: nil, max_values: 8)
+      @clock, @max_values = clock, max_values
       @fingerprint_key = fingerprint_key || Rails.application.key_generator.generate_key("twelve_data candle fingerprint")
     end
 
@@ -17,7 +17,7 @@ module TwelveData
       meta = payload["meta"]
       return attributes unless meta.is_a?(Hash) && meta["symbol"] == symbol && meta["interval"] == interval && meta["type"] == "Physical Currency"
       values = payload["values"]
-      return attributes unless values.is_a?(Array) && values.size <= 8
+      return attributes unless values.is_a?(Array) && values.size <= @max_values
       return attributes.merge(status: "empty") if values.empty?
 
       bars = values.map { |value| parse_bar(value) }
