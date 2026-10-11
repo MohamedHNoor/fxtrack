@@ -5,8 +5,9 @@ module TwelveData
   class Quality
     DURATIONS = { "1h" => 3600, "4h" => 14_400 }.freeze
 
-    def initialize(clock: -> { Time.current })
+    def initialize(clock: -> { Time.current }, fingerprint_key: nil)
       @clock = clock
+      @fingerprint_key = fingerprint_key || Rails.application.key_generator.generate_key("twelve_data candle fingerprint")
     end
 
     def evaluate(payload, symbol:, interval:)
@@ -31,6 +32,7 @@ module TwelveData
       attributes[:incomplete_count] = unique.size - closed.size
       attributes[:closed_count] = closed.size
       attributes[:earliest_opened_at] = closed.first&.fetch(:opened_at)
+      attributes[:fingerprints] = closed.to_h { |bar| [ bar[:opened_at], fingerprint(bar) ] }
       return attributes.merge(status: "empty") if closed.empty?
 
       latest = closed.last[:opened_at] + duration
@@ -41,6 +43,12 @@ module TwelveData
     end
 
     private
+
+    # BigDecimal#to_s("F") normalizes trailing zeros so equal prices match.
+    def fingerprint(bar)
+      canonical = [ bar[:opened_at].iso8601, *bar[:prices].map { |price| price.to_s("F") } ].join("|")
+      OpenSSL::HMAC.hexdigest("SHA256", @fingerprint_key, canonical)
+    end
 
     def parse_bar(value)
       return unless value.is_a?(Hash)

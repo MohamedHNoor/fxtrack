@@ -86,3 +86,35 @@ RSpec.describe "Concurrent probe quota", type: :model do
     ProviderRequest.where(requested_at: now).delete_all if now
   end
 end
+
+RSpec.describe "Cross-request reproducibility" do
+  let(:client) { instance_double(TwelveData::Client) }
+
+  def candles(hours, close: "1.2")
+    values = hours.map { |hour| { "datetime" => format("2026-10-12 %02d:00:00", hour), "open" => "1.1", "high" => "1.3", "low" => "1.0", "close" => close } }
+    payload = { "meta" => { "symbol" => "EUR/USD", "interval" => "1h", "type" => "Physical Currency" }, "values" => values }
+    TwelveData::Client::Response.new(status: "success", http_status: 200, credits_used: 1, credits_left: 7, error_code: nil, payload: payload, retry_after: nil)
+  end
+
+  def probe_at(time, response)
+    allow(client).to receive(:time_series).and_return(response)
+    TwelveData::Probe.new(client: client, clock: -> { time }).run(symbol: "EUR/USD", interval: "1h")
+  end
+
+  it "counts overlapping closed candles that later requests reproduce" do
+    expect(probe_at(Time.utc(2026, 10, 12, 11, 30), candles([ 9, 10 ]))).to eq("success")
+    expect(DataQualityMetric.last).to have_attributes(reproduced_count: 0, mismatch_count: 0)
+    expect(probe_at(Time.utc(2026, 10, 12, 12, 30), candles([ 9, 10, 11 ]))).to eq("success")
+    expect(DataQualityMetric.last).to have_attributes(status: "valid", reproduced_count: 2, mismatch_count: 0)
+    expect(CandleFingerprint.count).to eq(3)
+  end
+
+  it "rejects a response contradicting a stored candle without replacing its digest" do
+    probe_at(Time.utc(2026, 10, 12, 11, 30), candles([ 9, 10 ]))
+    original = CandleFingerprint.order(:opened_at).pluck(:digest)
+    expect(probe_at(Time.utc(2026, 10, 12, 12, 30), candles([ 9, 10, 11 ], close: "1.25"))).to eq("invalid_data")
+    expect(DataQualityMetric.last).to have_attributes(status: "unreproducible", mismatch_count: 2, reproduced_count: 0)
+    expect(CandleFingerprint.order(:opened_at).pluck(:digest)).to eq(original)
+    expect(ProviderRequest.last.error_code).to eq("invalid_response")
+  end
+end

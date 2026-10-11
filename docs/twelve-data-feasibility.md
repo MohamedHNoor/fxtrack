@@ -64,6 +64,8 @@ time, enumerated status/error code, optional HTTP status and optional measured
 credit headers. Nil credit usage means unknown, never zero. DataQualityMetric
 records one evaluation per request, UTC coverage timestamps, nonnegative counts
 and freshness. Neither table stores prices, response text, URLs or credentials.
+CandleFingerprint stores one keyed HMAC-SHA256 digest per closed candle
+(symbol, interval, UTC open time), not the prices themselves.
 
 Gitleaks scans Git with --no-textconv: Rails' credential textconv decrypts
 encrypted blobs for human display, which is inappropriate for a committed-byte
@@ -100,14 +102,15 @@ and 10-second read timeouts. HTTP internal retries are disabled. Timeout,
 transport failures, 429 and HTTP 5xx can retry with bounded backoff. Numeric
 Retry-After above 60 seconds causes a stop, not a long sleeping process.
 Unknown or nonnumeric credit headers remain nil. Provider response bodies,
-prices and exception messages are not persisted in metrics. No candle table
-exists while storage rights are unresolved.
+prices and exception messages are not persisted in metrics. No candle price
+table exists while storage rights are unresolved.
 
 ## Outstanding implementation and observation gates
 
 This is a diagnostic foundation, not a completed M00 implementation. The explicit collection task implements close-aligned due selection from observed
-closed timestamps and validates catalogue symbols separately. Exact cross-request
-price reproducibility and verified market-closure handling remain pending.
+closed timestamps and validates catalogue symbols separately. Cross-request
+candle reproducibility is checked through keyed fingerprints. Verified
+market-closure handling remains pending.
 Freshness and gap diagnostics conservatively reject stale/gapped data and do
 not assume weekends are feed failures or confirmed closures. The seven-day run
 must wait for those collection semantics to be verified. Historical retention
@@ -170,3 +173,26 @@ Verification: 39 RSpec examples cover catalogue rejection, due selection,
 partial failure, cumulative credit accounting and concurrent PostgreSQL quota
 reservations. This does not yet prove all-seven live coverage, complete candle
 reproducibility, weekend closure handling or seven days of evidence.
+
+## Reproducibility update
+
+Each successful time_series evaluation fingerprints its closed candles with
+HMAC-SHA256 over the UTC open time and decimal OHLC values. Trailing zeros are
+normalized, so "1.10" and "1.1" match. The key derives from the Rails
+secret_key_base, so the digests cannot be reversed into prices by guessing
+plausible values. Rotating secret_key_base makes existing fingerprints
+incomparable; clear candle_fingerprints after rotation rather than reading the
+resulting mismatches as provider defects.
+
+The first digest seen for a symbol, interval and open time becomes the
+reference. Later overlapping requests increment reproduced_count when they
+match. Any difference sets the metric status to unreproducible, increments
+mismatch_count and marks the request invalid_data. New digests from a
+contradicting response are rolled back so they never become references. The
+unique index serializes concurrent probes on the same candle. The report task
+includes both counts.
+
+Verification: 43 RSpec examples, adding overlap reproduction, mismatch
+rejection without digest replacement, keyed digests and decimal normalization.
+No live reproducibility evidence has been collected yet; that requires
+collection cycles separated by at least one close.

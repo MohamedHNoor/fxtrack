@@ -30,7 +30,7 @@ namespace :twelve_data do
       puts({ symbol: symbol, interval: interval, attempts: requests.count,
         reserved_credits: requests.count, latest_minute_credits_used: requests.order(:requested_at, :id).last&.credits_used, unknown_credit_header_attempts: requests.where(credits_used: nil).count,
         first_request_at: requests.minimum(:requested_at), last_request_at: requests.maximum(:requested_at),
-        quality: quality&.attributes&.slice("status", "latest_closed_at", "freshness_seconds", "gap_count", "duplicate_count") }.to_json)
+        quality: quality&.attributes&.slice("status", "latest_closed_at", "freshness_seconds", "gap_count", "duplicate_count", "reproduced_count", "mismatch_count") }.to_json)
     end
     puts({ gate: "pending", historical_retention: "unresolved", closure_policy: "unverified" }.to_json)
   end

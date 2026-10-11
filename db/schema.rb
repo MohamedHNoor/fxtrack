@@ -10,9 +10,23 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_12_050000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_12_060000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
+
+  create_table "candle_fingerprints", force: :cascade do |t|
+    t.bigint "provider_request_id", null: false
+    t.string "symbol", null: false
+    t.string "interval", null: false
+    t.datetime "opened_at", null: false
+    t.string "digest", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["provider_request_id"], name: "index_candle_fingerprints_on_provider_request_id"
+    t.index ["symbol", "interval", "opened_at"], name: "index_candle_fingerprints_on_symbol_and_interval_and_opened_at", unique: true
+    t.check_constraint "\"interval\"::text = ANY (ARRAY['1h'::character varying, '4h'::character varying]::text[])", name: "candle_fingerprint_interval"
+    t.check_constraint "digest::text ~ '^[0-9a-f]{64}$'::text", name: "candle_fingerprint_digest"
+  end
 
   create_table "data_quality_metrics", force: :cascade do |t|
     t.bigint "provider_request_id", null: false
@@ -27,8 +41,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_12_050000) do
     t.integer "freshness_seconds"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.integer "reproduced_count", default: 0, null: false
+    t.integer "mismatch_count", default: 0, null: false
     t.index ["provider_request_id"], name: "index_data_quality_metrics_on_provider_request_id", unique: true
     t.check_constraint "closed_count >= 0 AND incomplete_count >= 0 AND duplicate_count >= 0 AND gap_count >= 0", name: "quality_counts_nonnegative"
+    t.check_constraint "reproduced_count >= 0 AND mismatch_count >= 0", name: "quality_reproduction_nonnegative"
   end
 
   create_table "provider_requests", force: :cascade do |t|
@@ -49,5 +66,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_12_050000) do
     t.check_constraint "endpoint::text = 'time_series'::text AND (\"interval\"::text = ANY (ARRAY['1h'::character varying, '4h'::character varying]::text[])) AND \"interval\" IS NOT NULL OR endpoint::text = 'forex_pairs'::text AND \"interval\" IS NULL", name: "provider_endpoint_interval"
   end
 
+  add_foreign_key "candle_fingerprints", "provider_requests"
   add_foreign_key "data_quality_metrics", "provider_requests"
 end

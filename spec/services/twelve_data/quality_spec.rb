@@ -44,3 +44,25 @@ RSpec.describe TwelveData::Quality do
     expect(result).to include(status: "gaps", gap_count: 2)
   end
 end
+
+RSpec.describe TwelveData::Quality, "fingerprints" do
+  let(:now) { Time.utc(2026, 10, 12, 12) }
+  let(:bar) { { "datetime" => "2026-10-12 08:00:00", "open" => "1.1", "high" => "1.3", "low" => "1.0", "close" => "1.2" } }
+
+  def fingerprints(bars, key: "a" * 32)
+    payload = { "meta" => { "symbol" => "EUR/USD", "interval" => "1h", "type" => "Physical Currency" }, "values" => bars }
+    described_class.new(clock: -> { now }, fingerprint_key: key).evaluate(payload, symbol: "EUR/USD", interval: "1h")[:fingerprints]
+  end
+
+  it "keys closed candles by open time with a keyed digest and no prices" do
+    result = fingerprints([ bar, bar.merge("datetime" => "2026-10-12 11:30:00") ])
+    expect(result.keys).to eq([ Time.utc(2026, 10, 12, 8) ])
+    expect(result.values.first).to match(/\A[0-9a-f]{64}\z/)
+    expect(fingerprints([ bar ], key: "b" * 32)).not_to eq(result)
+  end
+
+  it "treats equal decimal prices as the same candle and changed prices as different" do
+    expect(fingerprints([ bar.merge("close" => "1.20") ])).to eq(fingerprints([ bar ]))
+    expect(fingerprints([ bar.merge("close" => "1.21") ])).not_to eq(fingerprints([ bar ]))
+  end
+end

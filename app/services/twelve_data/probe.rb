@@ -68,10 +68,32 @@ module TwelveData
           if previous && quality[:latest_closed_at] && quality[:latest_closed_at] < previous
             quality[:status] = "invalid"
           end
+          fingerprints = quality.delete(:fingerprints) || {}
+          reproduce(request, fingerprints, quality) unless quality[:status] == "invalid"
           request.create_data_quality_metric!(quality)
           request.update!(status: "invalid_data", error_code: "invalid_response") unless quality[:status] == "valid"
         end
       end
+    end
+
+    # Inserts first so concurrent probes compare against one stored digest; the
+    # savepoint discards new digests from a response that contradicts known ones.
+    def reproduce(request, fingerprints, quality)
+      return if fingerprints.empty?
+      digests = fingerprints.transform_keys(&:to_i)
+      inserted = mismatches = 0
+      CandleFingerprint.transaction(requires_new: true) do
+        rows = fingerprints.map do |opened_at, digest|
+          { provider_request_id: request.id, symbol: request.symbol, interval: request.interval, opened_at: opened_at, digest: digest }
+        end
+        inserted = CandleFingerprint.insert_all(rows, unique_by: %i[symbol interval opened_at], returning: %i[id]).length
+        stored = CandleFingerprint.where(symbol: request.symbol, interval: request.interval, opened_at: fingerprints.keys).pluck(:opened_at, :digest)
+        mismatches = stored.count { |opened_at, digest| digests[opened_at.to_i] != digest }
+        raise ActiveRecord::Rollback if mismatches.positive?
+      end
+      quality[:mismatch_count] = mismatches
+      quality[:reproduced_count] = fingerprints.size - inserted - mismatches
+      quality[:status] = "unreproducible" if mismatches.positive?
     end
 
     def retryable?(response)
