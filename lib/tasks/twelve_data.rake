@@ -41,8 +41,10 @@ namespace :twelve_data do
     ProviderRequest::SYMBOLS.product(ProviderRequest::INTERVALS).each do |symbol, interval|
       %w[earliest_timestamp time_series_history].each do |endpoint|
         # Invalid data is a final answer for the window; only provider failures retry.
-        done = ProviderRequest.where(symbol: symbol, interval: interval, endpoint: endpoint, status: %w[success invalid_data])
-          .where(requested_at: hours.hours.ago..).exists?
+        recent = ProviderRequest.where(symbol: symbol, interval: interval, endpoint: endpoint)
+          .where(requested_at: hours.hours.ago..)
+        stored = endpoint != "time_series_history" || Candle.where(symbol: symbol, interval: interval).exists?
+        done = recent.where(status: "invalid_data").exists? || (stored && recent.where(status: "success").exists?)
         next if done
         status = TwelveData::Probe.new.run(symbol: symbol, interval: interval, endpoint: endpoint)
         puts({ symbol: symbol, interval: interval, endpoint: endpoint, status: status }.to_json)
