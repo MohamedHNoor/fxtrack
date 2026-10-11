@@ -1,0 +1,119 @@
+<% content_for :title, "FXTrack · Private forex decision support" %>
+<% content_for :description, "Review completed-candle forex setups, plan NZD risk and keep a trading journal in one private workspace. You decide when to trade." %>
+
+<%= render "shared/public_header" %>
+
+<main data-controller="reveal">
+  <section class="mx-auto grid max-w-content items-center gap-8 px-5 py-8 md:gap-12 md:px-6 md:py-16 lg:grid-cols-[1fr_1.15fr]">
+    <div>
+      <span class="badge motion-rise">YOUR PERSONAL FOREX ASSISTANT</span>
+      <h1 class="motion-rise my-5 text-hero font-bold tracking-tighter" style="--delay: 80ms">
+        Trade smarter<br>with data,<br><span class="text-positive">not emotion.</span>
+      </h1>
+      <p class="motion-rise mb-6 max-w-xl text-lg leading-relaxed text-muted" style="--delay: 160ms">
+        Review technical setups, calculate planned risk and keep a complete trading journal. You decide when to trade.
+      </p>
+      <ul class="motion-rise mb-8 grid gap-3" style="--delay: 240ms">
+        <% ["Completed H4 trend and H1 confirmation", "NZD risk and position-size estimates",
+            "Optional email and Telegram alerts", "Manual trade journal and reconciliation"].each do |point| %>
+          <li class="flex items-center gap-3">
+            <span aria-hidden="true" class="inline-flex size-6 items-center justify-center rounded-full bg-positive-bg font-bold text-positive">✓</span>
+            <%= point %>
+          </li>
+        <% end %>
+      </ul>
+      <div class="motion-rise" style="--delay: 320ms">
+        <%= link_to new_session_path, class: "button button-primary" do %>Login <span aria-hidden="true">→</span><% end %>
+        <p class="mt-6 text-sm text-muted">Private personal platform. Signals do not guarantee returns.</p>
+      </div>
+    </div>
+
+    <div class="motion-rise" style="--delay: 200ms">
+    <figure class="card border-t-3 border-t-positive lg:[transform:perspective(1200px)_rotateY(-7deg)]">
+      <figcaption class="mb-6 flex items-center justify-between gap-3">
+        <span class="text-xl font-bold">NZD/USD <span class="text-positive">BUY</span></span>
+        <span class="badge">ILLUSTRATIVE</span>
+      </figcaption>
+      <svg viewBox="0 0 800 330" role="img" aria-label="Illustrative H1 candlesticks with two moving averages, not market data"
+           class="my-6 block h-auto min-h-44 w-full rounded-lg bg-linear-to-b from-surface to-canvas">
+        <g class="stroke-line opacity-45">
+          <% (0..800).step(80) do |x| %><path d="M<%= x %> 0V300"/><% end %>
+          <% (0..300).step(60) do |y| %><path d="M0 <%= y %>H800"/><% end %>
+        </g>
+        <% illustrative_candles.each_with_index do |candle, index| %>
+          <g class="motion-candle <%= candle[:rising] ? "fill-positive stroke-positive" : "fill-negative stroke-negative" %>" style="--i: <%= index %>">
+            <path d="M<%= candle[:x] %> <%= candle[:wick_top] %>V<%= candle[:wick_top] + 80 %>"/>
+            <rect x="<%= candle[:x] - 4 %>" y="<%= candle[:body_top] %>" width="8" height="44"/>
+          </g>
+        <% end %>
+        <path d="<%= LandingHelper::FAST_AVERAGE %>" pathLength="1" class="motion-line fill-none stroke-accent stroke-2"/>
+        <path d="<%= LandingHelper::SLOW_AVERAGE %>" pathLength="1" class="motion-line fill-none stroke-violet stroke-2" style="--delay: 1100ms"/>
+        <text x="0" y="325" class="fill-muted text-xs">Illustrative candles, not market data</text>
+      </svg>
+      <dl class="grid grid-cols-2 gap-2 sm:grid-cols-3">
+        <% illustrative_levels.each do |label, value, tone| %>
+          <div class="rounded-lg border border-line bg-raised p-4">
+            <dt class="text-xs text-muted"><%= label %></dt>
+            <dd class="mt-2 font-semibold md:text-lg <%= tone %>"><%= value %></dd>
+          </div>
+        <% end %>
+      </dl>
+    </figure>
+    </div>
+  </section>
+
+  <section id="features" class="mx-auto max-w-content scroll-mt-4 px-6 py-8">
+    <div class="mb-6 flex items-center gap-4" data-reveal-target="item">
+      <%= image_tag "fxtrack-icon.svg", alt: "", width: 48, height: 48, class: "size-12 rounded-lg" %>
+      <div>
+        <h2 class="text-2xl font-bold tracking-tight">Clarity at every step</h2>
+        <p class="text-sm text-muted">One private workspace. A more deliberate trading routine.</p>
+      </div>
+    </div>
+    <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <% [["Technical signals", "Inspect the conditions behind each completed-candle setup."],
+          ["Planned risk", "Size positions using account currency, stops and costs."],
+          ["Trading journal", "Record actual trades and reconcile realized results."],
+          ["Optional alerts", "Receive email or Telegram notifications on your terms."]].each_with_index do |(heading, body), index| %>
+        <article class="card border-t-3 <%= index.even? ? "border-t-accent" : "border-t-positive" %>" data-reveal-target="item" style="--delay: <%= index * 90 %>ms">
+          <h3 class="mb-2 text-lg font-semibold"><%= heading %></h3>
+          <p class="leading-relaxed text-muted"><%= body %></p>
+        </article>
+      <% end %>
+    </div>
+  </section>
+
+  <section id="how" class="mx-auto max-w-content scroll-mt-4 px-6 py-8">
+    <h2 class="mb-6 text-2xl font-bold tracking-tight" data-reveal-target="item">How it works</h2>
+    <ol class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <% [["Sign in", "Access your private owner workspace."],
+          ["Choose preferences", "Select pairs, risk and alert channels."],
+          ["Review signals", "Check evidence and current validity before deciding."],
+          ["Record actual trades", "Track realized results and account movements."]].each_with_index do |(heading, body), index| %>
+        <li class="card" data-reveal-target="item" style="--delay: <%= index * 90 %>ms">
+          <span class="badge" aria-hidden="true"><%= format("%02d", index + 1) %></span>
+          <h3 class="mt-4 mb-2 text-lg font-semibold"><%= heading %></h3>
+          <p class="leading-relaxed text-muted"><%= body %></p>
+        </li>
+      <% end %>
+    </ol>
+  </section>
+
+  <section id="faq" class="mx-auto max-w-content scroll-mt-4 px-6 py-8">
+    <h2 class="mb-6 text-2xl font-bold tracking-tight" data-reveal-target="item">Frequently asked questions</h2>
+    <% [["Does FXTrack place trades?", "No. The owner places trades manually with their broker and records the results in FXTrack."],
+        ["Are signals guaranteed to be profitable?", "No. Signals can expire or invalidate, and actual losses can exceed planned risk."],
+        ["Which pairs are supported?", "Seven major USD pairs: EUR/USD, GBP/USD, USD/JPY, USD/CHF, USD/CAD, AUD/USD and NZD/USD. Only pairs the owner enables are monitored."],
+        ["Can I create an account?", "No. FXTrack is a private platform for a single owner, so public registration is not available."]].each_with_index do |(question, answer), index| %>
+      <details class="group border-b border-line py-4" data-reveal-target="item" style="--delay: <%= index * 70 %>ms">
+        <summary class="flex cursor-pointer list-none items-center justify-between gap-4 font-semibold [&::-webkit-details-marker]:hidden">
+          <%= question %>
+          <span aria-hidden="true" class="text-info transition group-open:rotate-45">+</span>
+        </summary>
+        <p class="mt-3 leading-relaxed text-muted"><%= answer %></p>
+      </details>
+    <% end %>
+  </section>
+</main>
+
+<%= render "shared/public_footer" %>

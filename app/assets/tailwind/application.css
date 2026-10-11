@@ -1,1 +1,154 @@
 @import "tailwindcss";
+
+/* FXTrack tokens ported from prototypes/theme.css. */
+@theme {
+  --font-sans: Inter, Arial, Helvetica, system-ui, sans-serif;
+
+  --color-canvas: #061525;
+  --color-surface: #0b2035;
+  --color-raised: #0c2942;
+  --color-navy: #061b44;
+  --color-line: #21445f;
+  --color-fg: #e6efff;
+  --color-muted: #9cb2cb;
+  --color-faint: #748ca6;
+  --color-accent: #0866ff;
+  --color-accent-hover: #2382ff;
+  --color-info: #48b6ff;
+  --color-positive: #00c96b;
+  --color-positive-bg: #075b4b;
+  --color-negative: #ff4d5a;
+  --color-negative-bg: #62243a;
+  --color-warning: #ffca65;
+  --color-warning-bg: #382f22;
+  --color-violet: #925ce2;
+  --color-glow: #123b65;
+  --color-auth-fg: #132440;
+  --color-auth-muted: #526e91;
+  --color-auth-line: #cddced;
+
+  --text-hero: clamp(2.5rem, 5vw, 4.75rem);
+  --text-hero--line-height: 1.05;
+
+  --radius-card: 16px;
+  --container-content: 1400px;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-canvas font-sans text-fg antialiased;
+  }
+
+  :focus-visible {
+    @apply outline-3 outline-offset-3 outline-info;
+  }
+}
+
+@layer components {
+  .button {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-line bg-raised px-6 py-4 font-semibold text-fg transition hover:-translate-y-0.5 hover:border-info;
+  }
+
+  .button-primary {
+    @apply border-accent bg-accent text-white hover:bg-accent-hover;
+  }
+
+  .card {
+    @apply min-w-0 rounded-card border border-line bg-linear-130 from-surface to-canvas p-6 shadow-lg shadow-black/40;
+  }
+
+  .badge {
+    @apply inline-flex rounded-lg border border-line bg-raised px-3 py-2 text-xs font-bold whitespace-nowrap text-info;
+  }
+}
+
+/* Mobile drawer: slides in from the right over a fading backdrop. */
+@layer components {
+  .drawer {
+    @apply fixed inset-y-0 right-0 left-auto m-0 h-dvh max-h-none w-[min(88vw,360px)] max-w-none border-l border-line bg-navy text-fg shadow-2xl shadow-black/60;
+    transform: translateX(100%);
+    transition: transform 280ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  .drawer.is-open {
+    transform: translateX(0);
+  }
+
+  .drawer::backdrop {
+    background: rgb(2 11 24 / 0.8);
+    opacity: 0;
+    transition: opacity 280ms ease;
+  }
+
+  .drawer.is-open::backdrop {
+    opacity: 1;
+  }
+
+  .drawer-link {
+    opacity: 0;
+    transform: translateX(16px);
+    transition: opacity 240ms ease var(--delay, 0ms), transform 240ms ease var(--delay, 0ms), background-color 160ms ease, color 160ms ease;
+  }
+
+  .drawer.is-open .drawer-link {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Page motion. Hidden reveal states are added by JavaScript, so content stays
+   visible when scripts are unavailable. */
+@keyframes rise {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes grow {
+  from { transform: scaleY(0); }
+  to { transform: scaleY(1); }
+}
+
+@keyframes draw {
+  from { stroke-dashoffset: 1; }
+  to { stroke-dashoffset: 0; }
+}
+
+@layer utilities {
+  .motion-rise {
+    animation: rise 700ms cubic-bezier(0.2, 0.8, 0.2, 1) var(--delay, 0ms) both;
+  }
+
+  .motion-candle {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: grow 500ms cubic-bezier(0.2, 0.8, 0.2, 1) calc(400ms + var(--i) * 30ms) both;
+  }
+
+  .motion-line {
+    stroke-dasharray: 1;
+    animation: draw 1600ms ease-out var(--delay, 900ms) both;
+  }
+
+  .reveal-pending {
+    opacity: 0;
+    transform: translateY(24px);
+    transition: opacity 600ms ease var(--delay, 0ms), transform 600ms cubic-bezier(0.2, 0.8, 0.2, 1) var(--delay, 0ms);
+  }
+
+  .reveal-pending.reveal-visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+
+  .motion-rise, .motion-candle, .motion-line { animation: none; }
+
+  .drawer, .drawer::backdrop, .drawer-link, .reveal-pending, .button { transition: none; }
+}

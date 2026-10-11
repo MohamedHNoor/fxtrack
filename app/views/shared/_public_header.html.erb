@@ -1,0 +1,41 @@
+<% sections = { "Features" => "features", "How it works" => "how", "FAQ" => "faq" } %>
+<header class="mx-auto flex max-w-content items-center justify-between gap-6 px-4 py-4 md:px-6 md:py-6" data-controller="nav-menu">
+  <%= link_to root_path, class: "block w-[150px] shrink-0 md:w-[185px]", aria: { label: "FXTrack home" } do %>
+    <%= image_tag "fxtrack-logo-dark.svg", alt: "FXTrack", width: 340, height: 110, class: "h-auto w-full" %>
+  <% end %>
+
+  <nav aria-label="Primary" class="hidden gap-8 text-muted md:flex">
+    <% sections.each do |label, anchor| %>
+      <%= link_to label, root_path(anchor: anchor), class: "transition-colors hover:text-fg" %>
+    <% end %>
+  </nav>
+
+  <div class="flex items-center gap-3">
+    <%= link_to "Login", new_session_path, class: "button button-primary px-4 py-3 md:px-6 md:py-4" %>
+    <button type="button" class="button px-3 py-3 md:hidden" aria-haspopup="dialog" aria-expanded="false" aria-controls="mobile-menu"
+            data-nav-menu-target="button" data-action="nav-menu#open">
+      <span class="sr-only">Open menu</span>
+      <svg aria-hidden="true" viewBox="0 0 24 24" class="size-5 fill-none stroke-current stroke-2"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+    </button>
+  </div>
+
+  <dialog id="mobile-menu" aria-label="Menu" class="drawer md:hidden" data-nav-menu-target="dialog"
+          data-action="cancel->nav-menu#cancel click->nav-menu#closeOnBackdrop">
+    <div class="flex h-full flex-col p-6">
+      <div class="mb-8 flex items-center justify-between">
+        <%= image_tag "fxtrack-logo-dark.svg", alt: "FXTrack", width: 340, height: 110, class: "h-auto w-[150px]" %>
+        <button type="button" class="button px-3 py-3" data-action="nav-menu#close">
+          <span class="sr-only">Close menu</span>
+          <svg aria-hidden="true" viewBox="0 0 24 24" class="size-5 fill-none stroke-current stroke-2"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+      </div>
+      <nav aria-label="Mobile" class="grid gap-1">
+        <% sections.each_with_index do |(label, anchor), index| %>
+          <%= link_to label, root_path(anchor: anchor), class: "drawer-link rounded-lg border-l-3 border-transparent px-4 py-4 text-lg text-muted hover:border-info hover:bg-glow hover:text-fg",
+                style: "--delay: #{120 + index * 60}ms", data: { action: "nav-menu#close" } %>
+        <% end %>
+      </nav>
+      <%= link_to "Login", new_session_path, class: "button button-primary mt-auto w-full" %>
+    </div>
+  </dialog>
+</header>
