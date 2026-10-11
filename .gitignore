@@ -36,3 +36,17 @@
 
 /app/assets/builds/*
 !/app/assets/builds/.keep
+
+# Local generated Blueprint dashboard state
+/blueprint/.state/
+
+# Local OS and editor files
+.DS_Store
+*.swp
+*.swo
+
+# AI Blueprint local workflow files
+.agents/
+.claude/
+blueprint/
+CLAUDE.md
