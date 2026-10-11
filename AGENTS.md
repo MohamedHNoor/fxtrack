@@ -68,7 +68,8 @@ and installed dependencies before adding machinery.
 `bin/setup --skip-server`, which may install missing gems and prepares the
 database, followed by RSpec tests, RuboCop, Bundler Audit, Importmap Audit, and Brakeman.
 It requires a working Ruby/Bundler environment and PostgreSQL. Security audits
-may need network access. Production asset compilation and startup require the
+may need network access. Install Gitleaks (`brew install gitleaks` on macOS)
+before running Verify; CI installs the pinned scanner release. Production asset compilation and startup require the
 project's environment and credentials.
 
 When running `bin/ci` from a sandboxed agent, allow access to the configured local
