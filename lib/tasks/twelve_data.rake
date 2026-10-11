@@ -57,6 +57,14 @@ namespace :twelve_data do
     abort "Probe did not succeed; consult sanitized metrics" unless result == "success"
   end
 
+  desc "Summarize M00 acceptance evidence against the amended gate"
+  task acceptance: :environment do
+    result = TwelveData::Acceptance.new.call
+    puts "M00 gate: #{result[:gate].upcase} (generated #{result[:generated_at].iso8601})"
+    result[:checks].each { |name, item| puts format("  [%s] %-20s %s", item[:pass] ? "x" : " ", name, item[:detail]) }
+    result[:combos].each { |row| puts row.to_json }
+  end
+
   desc "Report diagnostic coverage without credentials or price data"
   task report: :environment do
     ProviderRequest::SYMBOLS.product(ProviderRequest::INTERVALS).each do |symbol, interval|

@@ -390,3 +390,10 @@ storage behaviour changes, and adopt any published timeframe immediately.
 
 This resolves the M00 rights review. M00 itself stores no candle prices;
 persistence arrives with the milestones that need it, under this decision.
+
+Check progress against this gate with `bin/rails twelve_data:acceptance`. It
+prints each criterion as passed or pending, then one line per pair/interval
+with live requests, outcomes, error codes, reproduced and mismatched closes,
+invalid candles, latest freshness and history-window status. Live hours count
+distinct trading-hour buckets containing a live request since 2026-10-11
+21:00 UTC; weekend hours never count.
