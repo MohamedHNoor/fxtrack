@@ -1,0 +1,153 @@
+<% content_for :title, "Settings · FXTrack" %>
+
+<header class="motion-rise mb-8">
+  <h1 class="text-2xl font-bold tracking-tight md:text-3xl">Risk &amp; account settings</h1>
+  <p class="mt-1 text-muted">Manage capital, risk and your enabled currency pairs.</p>
+</header>
+
+<div class="grid gap-6 lg:grid-cols-[2fr_1fr]">
+  <section class="card motion-rise" aria-labelledby="risk-heading">
+    <h2 id="risk-heading" class="text-lg font-semibold">Risk management</h2>
+    <dl class="mt-4 mb-6 divide-y divide-line">
+      <div class="flex justify-between gap-4 py-3"><dt class="text-muted">Account currency</dt><dd class="font-semibold">NZD</dd></div>
+      <div class="flex justify-between gap-4 py-3"><dt class="text-muted">Current capital</dt><dd class="font-semibold"><%= @balance ? nzd(@balance) : "Not set up" %></dd></div>
+    </dl>
+    <%= render "accounts/errors", record: @profile %>
+    <%= form_with model: @profile, url: risk_profile_path, method: :patch, class: "grid gap-4 sm:grid-cols-2" do |form| %>
+      <div>
+        <%= form.label :risk_percent, "Default risk (% of current balance)", class: "field-label" %>
+        <%= form.number_field :risk_percent, step: "0.01", min: "0.01", max: 10, class: "field-input" %>
+      </div>
+      <div>
+        <%= form.label :mode, "Risk mode", class: "field-label" %>
+        <%= form.select :mode, [["Percentage", "percentage"], ["Fixed NZD amount", "fixed"]], {}, class: "field-input" %>
+      </div>
+      <div>
+        <%= form.label :fixed_risk, "Fixed risk (NZD, fixed mode)", class: "field-label" %>
+        <%= form.number_field :fixed_risk, step: "0.01", min: "0.01", class: "field-input" %>
+      </div>
+      <div>
+        <%= form.label :reward_ratio, "Target reward multiple", class: "field-label" %>
+        <%= form.number_field :reward_ratio, step: "0.1", min: "0.1", max: 20, class: "field-input" %>
+      </div>
+      <div>
+        <%= form.label :stop_pips, "Stop distance (pips)", class: "field-label" %>
+        <%= form.number_field :stop_pips, step: "0.1", min: "0.1", max: 1000, class: "field-input" %>
+      </div>
+      <div>
+        <%= form.label :max_loss, "Maximum loss cap (NZD, optional)", class: "field-label" %>
+        <%= form.number_field :max_loss, step: "0.01", min: "0.01", class: "field-input" %>
+      </div>
+      <div>
+        <%= form.label :min_lot, "Broker minimum lot", class: "field-label" %>
+        <%= form.number_field :min_lot, step: "0.01", min: "0.01", class: "field-input" %>
+      </div>
+      <div>
+        <%= form.label :lot_step, "Broker lot step", class: "field-label" %>
+        <%= form.number_field :lot_step, step: "0.01", min: "0.01", class: "field-input" %>
+      </div>
+      <div class="flex justify-between gap-4 border-t border-line pt-4 sm:col-span-2">
+        <span class="text-muted">Planned risk per trade</span>
+        <strong><%= @balance ? nzd(@profile.planned_risk(@balance)) : "Set up the account first" %></strong>
+      </div>
+      <%= form.submit "Save risk settings", class: "button button-primary cursor-pointer sm:col-span-2" %>
+    <% end %>
+  </section>
+
+  <section class="card motion-rise" style="--delay: 100ms" aria-labelledby="capital-heading">
+    <h2 id="capital-heading" class="text-lg font-semibold">Capital management</h2>
+    <p class="mt-4 text-3xl font-bold tabular-nums"><%= @balance ? nzd(@balance) : "Not set up" %></p>
+    <p class="mt-2 text-sm text-muted">
+      <%= @account ? "Balance from starting capital and recorded cash movements. Closed trades join with the journal." : "Set up starting capital on the ledger page." %>
+    </p>
+    <div class="mt-5 flex flex-wrap gap-3">
+      <%= link_to @account ? "View ledger" : "Set up account", account_path, class: "button button-primary" %>
+    </div>
+    <dl class="mt-6 divide-y divide-line">
+      <div class="flex justify-between gap-4 py-3"><dt class="text-muted">Timezone</dt><dd><%= Rails.configuration.x.owner_time_zone %></dd></div>
+      <div class="flex justify-between gap-4 py-3"><dt class="text-muted">Alert preferences</dt><dd class="text-right text-faint">Not available yet</dd></div>
+    </dl>
+  </section>
+</div>
+
+<section class="card mt-6" aria-labelledby="pairs-heading">
+  <h2 id="pairs-heading" class="text-lg font-semibold">Currency pair preferences</h2>
+  <p class="mt-1 mb-4 text-sm text-muted">Only enabled pairs are monitored while a valid owner session exists. Changing pairs is not available yet.</p>
+  <ul class="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+    <% @pairs.each do |pair| %>
+      <li class="flex items-center justify-between gap-3 rounded-lg border border-line bg-raised px-4 py-3">
+        <span class="font-medium"><%= pair.symbol %></span>
+        <span class="text-xs font-semibold <%= pair.enabled ? "text-positive" : "text-faint" %>"><%= pair.enabled ? "Enabled" : "Disabled" %></span>
+      </li>
+    <% end %>
+  </ul>
+</section>
+
+<section class="card mt-6" aria-labelledby="calculator-heading">
+  <h2 id="calculator-heading" class="text-lg font-semibold">Position calculator</h2>
+  <p class="mt-1 mb-5 text-sm text-muted">Choose a pair. Size, stop and target come from the risk settings above and the latest stored prices.</p>
+
+  <div class="grid gap-6 lg:grid-cols-[1fr_1.6fr]">
+    <% needs_entry = @last_price.nil? %>
+    <% needs_rate = @nzd_usd_stored.nil? && @symbol != "NZD/USD" %>
+    <%= form_with url: settings_path(anchor: "calculator-heading"), method: :get, scope: :trade, class: "grid content-start gap-4", data: { controller: "auto-submit" } do |form| %>
+      <div>
+        <%= form.label :symbol, "Currency pair", class: "field-label" %>
+        <%= form.select :symbol, ProviderRequest::SYMBOLS, { selected: @symbol }, class: "field-input", data: { action: "auto-submit#submit" } %>
+      </div>
+      <% if needs_entry %>
+        <div>
+          <%= form.label :entry, "Current #{@symbol} price", class: "field-label" %>
+          <%= form.text_field :entry, value: @trade[:entry], inputmode: "decimal", placeholder: "e.g. 1.12025", class: "field-input" %>
+          <p class="mt-1 text-xs text-faint">Needed until a <%= @symbol %> price is stored</p>
+        </div>
+      <% end %>
+      <% if needs_rate %>
+        <div>
+          <%= form.label :nzd_usd, "Current NZD/USD rate", class: "field-label" %>
+          <%= form.text_field :nzd_usd, value: @trade[:nzd_usd], inputmode: "decimal", placeholder: "e.g. 0.5800", class: "field-input" %>
+          <p class="mt-1 text-xs text-faint">Needed until an NZD/USD rate is stored</p>
+        </div>
+      <% end %>
+      <%= form.submit "Calculate", name: nil, class: "button cursor-pointer" %>
+    <% end %>
+
+    <div aria-live="polite">
+      <% if @result.ok? %>
+        <div class="rounded-lg border border-info/40 bg-glow/50 p-4">
+          <p class="text-sm text-muted">Position size</p>
+          <p class="mt-1 text-2xl font-bold"><%= @result.lots.to_s("F") %> lots <span class="text-base font-normal text-muted">(<%= number_with_delimiter(@result.units) %> units)</span></p>
+          <p class="mt-2 text-sm">Loss if the stop is hit: <strong class="text-negative"><%= number_to_currency(@result.risk_at_size, unit: "NZ$") %></strong> · Gain at <%= @profile.reward_ratio.to_s("F") %>R target: <strong class="text-positive"><%= number_to_currency(@result.reward_at_size, unit: "NZ$") %></strong></p>
+        </div>
+
+        <div class="mt-4 grid gap-3 sm:grid-cols-2">
+          <% @result.plans.each_value do |plan| %>
+            <% buy = plan.direction == "buy" %>
+            <div class="rounded-lg border border-t-3 border-line bg-raised p-4 <%= buy ? "border-t-positive" : "border-t-negative" %>">
+              <h3 class="font-semibold <%= buy ? "text-positive" : "text-negative" %>"><%= buy ? "Buy" : "Sell" %> plan</h3>
+              <p class="mb-3 text-xs text-faint"><%= buy ? "Profit if price rises" : "Profit if price falls" %></p>
+              <dl class="grid gap-2 text-sm">
+                <% [["Entry", plan.entry, "text-info"], ["Stop loss", plan.stop, "text-negative"], ["Take profit", plan.target, "text-positive"]].each do |label, price, tone| %>
+                  <div class="flex justify-between gap-3"><dt class="text-muted"><%= label %></dt><dd class="font-semibold tabular-nums <%= tone %>"><%= format_price(@symbol, price) %></dd></div>
+                <% end %>
+              </dl>
+            </div>
+          <% end %>
+        </div>
+
+        <h3 class="mt-5 mb-2 text-sm font-semibold">How this was worked out</h3>
+        <ol class="list-decimal space-y-1 pl-5 text-sm text-muted">
+          <% @result.steps.each do |step| %><li><%= step %></li><% end %>
+        </ol>
+        <p class="mt-4 text-xs text-faint">
+          Prices: <%= @result.sources.to_sentence %><%= ", #{@symbol} last close #{owner_time(@last_price.closed_at)}" if @last_price && @trade[:entry].blank? %>.
+          Entry is the latest stored price.
+        </p>
+      <% else %>
+        <div role="alert" class="rounded-lg border border-negative/50 bg-negative-bg/40 px-4 py-3 text-sm">
+          <ul class="list-disc space-y-1 pl-5"><% @result.errors.each do |message| %><li><%= message %></li><% end %></ul>
+        </div>
+      <% end %>
+    </div>
+  </div>
+</section>

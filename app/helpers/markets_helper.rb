@@ -1,5 +1,5 @@
 module MarketsHelper
-  OWNER_TIME_ZONE = "Pacific/Auckland".freeze
+  OWNER_TIME_ZONE = Rails.configuration.x.owner_time_zone
 
   def price_decimals(symbol)
     symbol.end_with?("JPY") ? 3 : 5

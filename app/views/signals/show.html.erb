@@ -1,0 +1,53 @@
+<% content_for :title, "#{@signal.symbol} #{@signal.direction.upcase} signal · FXTrack" %>
+<% evidence = @signal.evidence %>
+
+<header class="motion-rise mb-6">
+  <%= link_to "← Signals", signals_path, class: "text-sm text-info hover:underline" %>
+  <h1 class="mt-2 flex flex-wrap items-center gap-3 text-2xl font-bold tracking-tight md:text-3xl"><%= @signal.symbol %> <%= direction_badge(@signal.direction) %></h1>
+  <p class="mt-1 text-muted"><%= @signal.strategy_version.label %> · generated <%= owner_time(@signal.generated_at) %></p>
+</header>
+
+<div class="grid gap-6 lg:grid-cols-[1.2fr_1fr]">
+  <section class="card" aria-labelledby="plan-heading">
+    <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+      <h2 id="plan-heading" class="text-lg font-semibold">Trade plan</h2>
+      <% if @signal.actionable? %>
+        <span class="rounded-lg border border-positive/50 px-2 py-1 text-xs font-semibold text-positive">Active · <span data-controller="countdown" data-countdown-expires-at-value="<%= @signal.expires_at.iso8601 %>"></span></span>
+      <% else %>
+        <span class="rounded-lg border border-line px-2 py-1 text-xs font-semibold text-muted"><%= @signal.status == "active" ? "Expired" : @signal.status.capitalize %><%= " · #{@signal.status_reason}" if @signal.status_reason %></span>
+      <% end %>
+    </div>
+    <dl class="grid grid-cols-2 gap-3 sm:grid-cols-3">
+      <% [["Entry", format_price(@signal.symbol, @signal.entry), "text-info"], ["Stop loss", format_price(@signal.symbol, @signal.stop), "text-negative"],
+          ["Take profit", format_price(@signal.symbol, @signal.target), "text-positive"], ["Stop distance", "#{@signal.stop_pips.to_s("F")} pips", "text-fg"],
+          ["Reward", "#{@signal.reward_ratio.to_s("F")}R", "text-fg"], ["Valid within", "± #{format_price(@signal.symbol, @signal.entry_tolerance)}", "text-fg"],
+          ["Position", @signal.lots ? "#{@signal.lots.to_s("F")} lots" : "Not sized", "text-info"], ["Risk at size", nzd(@signal.risk_at_size), "text-negative"],
+          ["Expires", owner_time(@signal.expires_at), "text-fg"]].each do |label, value, tone| %>
+        <div class="rounded-lg border border-line bg-raised p-3"><dt class="text-xs text-muted"><%= label %></dt><dd class="mt-1 font-semibold tabular-nums <%= tone %>"><%= value %></dd></div>
+      <% end %>
+    </dl>
+    <% if @signal.sizing_error %><p class="mt-4 text-sm text-warning">Not sized: <%= @signal.sizing_error %></p><% end %>
+    <% if evidence["sizing_steps"].present? %>
+      <h3 class="mt-5 mb-2 text-sm font-semibold">Position size working</h3>
+      <ol class="list-decimal space-y-1 pl-5 text-sm text-muted"><% evidence["sizing_steps"].each do |step| %><li><%= step %></li><% end %></ol>
+    <% end %>
+    <p class="mt-4 text-xs text-faint">The countdown is a guide; the server status above decides validity. Gaps and slippage can exceed planned risk.</p>
+  </section>
+
+  <section class="card" aria-labelledby="evidence-heading">
+    <h2 id="evidence-heading" class="mb-4 text-lg font-semibold">Why this signal</h2>
+    <ul class="mb-5 space-y-2 text-sm"><% Array(evidence["reasons"]).each do |reason| %><li><span class="mr-2 text-positive" aria-hidden="true">✓</span><%= reason %></li><% end %></ul>
+    <dl class="divide-y divide-line text-sm">
+      <% [["H4 EMAs (fast / slow)", "#{evidence["h4_ema_fast"]} / #{evidence["h4_ema_slow"]}"],
+          ["H1 EMAs (fast / slow)", "#{evidence["h1_ema_fast"]} / #{evidence["h1_ema_slow"]}"],
+          ["ATR (H1)", evidence["atr"].to_d.round(5).to_s("F")],
+          ["Swing level", "#{evidence["swing_level"]} (#{owner_time(Time.zone.parse(evidence["swing_at"].to_s))})"],
+          ["Zone", "#{evidence["zone_low"].to_d.round(5).to_s("F")} to #{evidence["zone_high"].to_d.round(5).to_s("F")}"],
+          ["Next obstacle", evidence["next_obstacle"] || "None within the lookback"],
+          ["Stop widened to minimum", evidence["stop_widened_to_minimum"] ? "Yes" : "No"]].each do |label, value| %>
+        <div class="flex justify-between gap-4 py-2"><dt class="text-muted"><%= label %></dt><dd class="text-right tabular-nums"><%= value %></dd></div>
+      <% end %>
+    </dl>
+    <%= link_to "Open #{@signal.symbol} chart →", market_path(@signal.symbol.delete("/")), class: "mt-4 inline-block text-sm text-info hover:underline" %>
+  </section>
+</div>

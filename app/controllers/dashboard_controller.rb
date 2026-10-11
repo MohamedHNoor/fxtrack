@@ -4,6 +4,9 @@ class DashboardController < ApplicationController
   def show
     @pairs = CurrencyPair.enabled.ordered
     @snapshots = @pairs.to_h { |pair| [ pair.symbol, ProviderRequest::INTERVALS.to_h { |interval| [ interval, MarketSnapshot.for(pair.symbol, interval) ] } ] }
+    @account = Current.user.trading_account
+    @active_signals = TradeSignal.active.joins(strategy_version: :strategy).where(strategies: { user_id: Current.user.id })
+      .where("trade_signals.expires_at > ?", Time.current).count
     @active_sessions = Session.active.count
     @other_sessions = Current.user.sessions.active.where.not(id: Current.session.id).count
     @last_request = ProviderRequest.where(endpoint: "time_series").order(:requested_at, :id).last

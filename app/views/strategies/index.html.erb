@@ -1,0 +1,46 @@
+<% content_for :title, "Strategies · FXTrack" %>
+
+<header class="motion-rise mb-8">
+  <h1 class="text-2xl font-bold tracking-tight md:text-3xl">Strategies</h1>
+  <p class="mt-1 text-muted">Rule configurations the signal engine runs on completed candles. Editing saves a new version; past signals keep the version that produced them.</p>
+</header>
+
+<% if alert %><p role="alert" class="mb-6 rounded-lg border border-negative/50 bg-negative-bg/40 px-4 py-3 text-sm"><%= alert %></p><% end %>
+
+<div class="grid gap-4 lg:grid-cols-2">
+  <% @active.each do |strategy| %>
+    <% version = strategy.current_version %>
+    <section class="card border-t-3 <%= strategy.enabled ? "border-t-positive" : "border-t-line" %>" aria-labelledby="strategy-<%= strategy.id %>">
+      <div class="flex items-start justify-between gap-3">
+        <div>
+          <h2 id="strategy-<%= strategy.id %>" class="text-lg font-semibold"><%= strategy.name %></h2>
+          <p class="mt-1 text-sm text-muted"><%= Strategy::KINDS.fetch(strategy.kind) %> · version <%= version.number %> of <%= strategy.versions.size %></p>
+        </div>
+        <span class="rounded-lg border px-2 py-1 text-xs font-semibold <%= strategy.enabled ? "border-positive/50 text-positive" : "border-line text-faint" %>"><%= strategy.enabled ? "Running" : "Disabled" %></span>
+      </div>
+      <dl class="mt-4 grid grid-cols-2 gap-x-4 gap-y-1 text-sm sm:grid-cols-3">
+        <% %w[ema_fast ema_slow swing_lookback zone_atr stop_buffer_atr expiry_minutes].each do |key| %>
+          <div><dt class="text-xs text-faint"><%= SignalsHelper::CONFIG_LABELS.fetch(key).first %></dt><dd class="tabular-nums"><%= version.setting(key) %></dd></div>
+        <% end %>
+      </dl>
+      <div class="mt-5 flex flex-wrap gap-2">
+        <%= button_to strategy.enabled ? "Disable" : "Enable", toggle_strategy_path(strategy), method: :patch, class: "button cursor-pointer px-4 py-2 #{"button-primary" unless strategy.enabled}" %>
+        <%= link_to "Edit rules", edit_strategy_path(strategy), class: "button px-4 py-2" %>
+        <%= button_to "Clone", clone_strategy_path(strategy), class: "button cursor-pointer px-4 py-2" %>
+        <%= button_to "Archive", archive_strategy_path(strategy), method: :patch, class: "button cursor-pointer px-4 py-2",
+              form: { data: { turbo_confirm: "Archive #{strategy.name}? It stops running; its signals and versions are kept." } } %>
+      </div>
+    </section>
+  <% end %>
+</div>
+
+<% if @archived.any? %>
+  <section class="card mt-6" aria-labelledby="archived-heading">
+    <h2 id="archived-heading" class="mb-3 text-lg font-semibold">Archived</h2>
+    <ul class="divide-y divide-line text-sm">
+      <% @archived.each do |strategy| %>
+        <li class="flex justify-between gap-3 py-2"><span><%= strategy.name %></span><span class="text-faint">v<%= strategy.current_version.number %> · archived <%= owner_time(strategy.archived_at) %></span></li>
+      <% end %>
+    </ul>
+  </section>
+<% end %>

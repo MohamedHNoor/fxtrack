@@ -1,0 +1,7 @@
+<%# locals: (record:) %>
+<% if record.errors.any? %>
+  <div role="alert" class="mb-5 rounded-lg border border-negative/50 bg-negative-bg/40 px-4 py-3 text-sm">
+    <p class="font-semibold">Could not save:</p>
+    <ul class="mt-1 list-disc pl-5"><% record.errors.full_messages.each do |message| %><li><%= message %></li><% end %></ul>
+  </div>
+<% end %>

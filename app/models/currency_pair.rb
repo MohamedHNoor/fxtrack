@@ -23,6 +23,15 @@ class CurrencyPair < ApplicationRecord
     find_by!(symbol: code.insert(3, "/"))
   end
 
+  # A pip is the fourth decimal place, or the second for JPY-quoted pairs.
+  def self.pip_size(symbol)
+    symbol.end_with?("JPY") ? BigDecimal("0.01") : BigDecimal("0.0001")
+  end
+
+  def pip_size
+    self.class.pip_size(symbol)
+  end
+
   def base
     symbol.split("/").first
   end

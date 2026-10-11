@@ -1,0 +1,61 @@
+<% content_for :title, "Signals · FXTrack" %>
+
+<header class="motion-rise mb-8">
+  <h1 class="text-2xl font-bold tracking-tight md:text-3xl">Trading signals</h1>
+  <p class="mt-1 text-muted">Trades your strategies propose on completed H1 candles. You decide whether to take them; signals never place trades or move capital.</p>
+</header>
+
+<section aria-labelledby="active-heading" class="mb-8">
+  <h2 id="active-heading" class="mb-4 text-lg font-semibold">Active trade ideas</h2>
+  <% warnings = usd_exposure_warnings(@active) %>
+  <% if warnings.any? %>
+    <div role="alert" class="mb-4 rounded-lg border border-warning/60 bg-warning-bg px-4 py-3 text-sm text-warning">
+      <p class="font-semibold">Correlated US dollar exposure</p>
+      <ul class="mt-1 list-disc pl-5"><% warnings.each do |warning| %><li><%= warning %></li><% end %></ul>
+    </div>
+  <% end %>
+  <% if @active.empty? %>
+    <div class="card text-sm text-muted">No active signals. The latest analysis for each pair is below, including why it is waiting.</div>
+  <% else %>
+    <div class="grid gap-4 lg:grid-cols-2"><% @active.each do |signal| %><%= render "signals/card", signal: signal %><% end %></div>
+  <% end %>
+</section>
+
+<section class="card mb-8" aria-labelledby="analysis-heading">
+  <h2 id="analysis-heading" class="mb-1 text-lg font-semibold">Latest analysis</h2>
+  <p class="mb-4 text-sm text-muted">One verdict per enabled pair for each running strategy, on the latest fresh H1 candle.</p>
+  <div class="overflow-x-auto">
+    <table class="w-full min-w-[640px] text-sm">
+      <thead class="bg-raised text-left text-muted">
+        <tr><th class="px-3 py-3 font-medium">Pair</th><th class="px-3 py-3 font-medium">Strategy</th><th class="px-3 py-3 font-medium">Verdict</th><th class="px-3 py-3 font-medium">Reason</th><th class="px-3 py-3 font-medium">Candle</th></tr>
+      </thead>
+      <tbody class="divide-y divide-line">
+        <% @latest_runs.each do |pair, version, run| %>
+          <tr>
+            <td class="px-3 py-3 font-medium"><%= pair.symbol %></td>
+            <td class="px-3 py-3 text-muted"><%= version.label %></td>
+            <td class="px-3 py-3"><%= run ? direction_badge(run.verdict) : tag.span("Not analysed", class: "text-faint") %></td>
+            <td class="px-3 py-3 text-muted"><%= run ? run.reasons.first : "Waiting for a fresh completed H1 candle" %></td>
+            <td class="px-3 py-3 whitespace-nowrap text-faint"><%= run ? owner_time(run.candle_opened_at + 1.hour) : "None" %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="card" aria-labelledby="history-heading">
+  <h2 id="history-heading" class="mb-4 text-lg font-semibold">Recent signals</h2>
+  <% if @history.empty? %>
+    <p class="text-sm text-muted">No expired or invalidated signals yet.</p>
+  <% else %>
+    <ul class="divide-y divide-line text-sm">
+      <% @history.each do |signal| %>
+        <li class="flex flex-wrap items-center justify-between gap-3 py-3">
+          <span><%= direction_badge(signal.direction) %> <%= link_to signal.symbol, signal_path(signal), class: "ml-1 font-medium hover:underline" %> at <%= format_price(signal.symbol, signal.entry) %></span>
+          <span class="text-muted"><%= signal.status.capitalize %><%= " · #{signal.status_reason}" if signal.status_reason %> · <%= owner_time(signal.generated_at) %></span>
+        </li>
+      <% end %>
+    </ul>
+  <% end %>
+</section>

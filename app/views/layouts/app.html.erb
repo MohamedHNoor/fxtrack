@@ -1,6 +1,6 @@
 <% content_for :head do %><meta name="robots" content="noindex"><% end %>
 <% content_for :app_body do %>
-  <% nav = [["Dashboard", dashboard_path], ["Markets", markets_path]] %>
+  <% nav = [["Dashboard", dashboard_path], ["Signals", signals_path], ["Markets", markets_path], ["Strategies", strategies_path], ["Account", account_path], ["Settings", settings_path]] %>
   <aside class="fixed inset-y-0 left-0 z-20 hidden w-[220px] flex-col border-r border-line bg-navy px-4 py-8 shadow-lg shadow-black/40 md:flex">
     <%= link_to dashboard_path, class: "block w-[150px]", aria: { label: "FXTrack dashboard" } do %>
       <%= image_tag "fxtrack-logo-dark.svg", alt: "FXTrack", width: 340, height: 110, class: "h-auto w-full" %>

@@ -1,0 +1,24 @@
+<%# locals: (signal:) %>
+<% buy = signal.direction == "buy" %>
+<article class="rounded-card border border-t-3 border-line bg-raised p-5 <%= buy ? "border-t-positive" : "border-t-negative" %>">
+  <div class="flex items-start justify-between gap-3">
+    <div>
+      <h3 class="text-lg font-semibold"><%= signal.symbol %> <%= direction_badge(signal.direction) %></h3>
+      <p class="mt-1 text-xs text-faint"><%= signal.strategy_version.label %> · H1 close <%= owner_time(signal.source_opened_at + 1.hour) %></p>
+    </div>
+    <span class="text-sm font-semibold text-warning" data-controller="countdown" data-countdown-expires-at-value="<%= signal.expires_at.iso8601 %>"><%= signal.remaining_seconds / 60 %>m left</span>
+  </div>
+  <dl class="mt-4 grid grid-cols-3 gap-2 text-sm">
+    <% [["Entry", signal.entry, "text-info"], ["Stop loss", signal.stop, "text-negative"], ["Take profit", signal.target, "text-positive"]].each do |label, price, tone| %>
+      <div class="rounded-lg border border-line p-3"><dt class="text-xs text-muted"><%= label %></dt><dd class="mt-1 font-semibold tabular-nums <%= tone %>"><%= format_price(signal.symbol, price) %></dd></div>
+    <% end %>
+  </dl>
+  <p class="mt-3 text-sm">
+    <% if signal.lots %>
+      <strong><%= signal.lots.to_s("F") %> lots</strong> · risk <strong class="text-negative"><%= nzd(signal.risk_at_size) %></strong> · <%= signal.stop_pips.to_s("F") %>-pip stop · <%= signal.reward_ratio.to_s("F") %>R
+    <% else %>
+      <span class="text-warning">Not sized: <%= signal.sizing_error %></span>
+    <% end %>
+  </p>
+  <%= link_to "View full analysis →", signal_path(signal), class: "mt-3 inline-block text-sm text-info hover:underline" %>
+</article>

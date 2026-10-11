@@ -15,6 +15,21 @@ Rails.application.routes.draw do
 
   get "dashboard", to: "dashboard#show", as: :dashboard
   resources :markets, only: %i[ index show ]
+  resources :signals, only: %i[ index show ]
+  resources :strategies, only: %i[ index edit update ] do
+    member do
+      post :clone
+      patch :archive
+      patch :toggle
+    end
+  end
+  resource :account, only: %i[ show create ]
+  resources :ledger_entries, only: :create do
+    resource :reversal, only: :create
+  end
+  resource :settings, only: :show
+  resource :risk_profile, only: :update, path: "settings/risk"
+  get "risk", to: redirect("/settings")
 
   root "pages#home"
 end

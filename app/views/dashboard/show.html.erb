@@ -10,8 +10,8 @@
   </header>
 
   <section aria-label="Summary" class="mb-6 grid grid-cols-2 gap-3 xl:grid-cols-4">
-    <% [["Account balance", "Not set up", "Record starting capital once the account ledger is available.", "border-t-accent"],
-        ["Active signals", "None", "The signal engine is not enabled yet.", "border-t-positive"],
+    <% [["Account balance", @account ? nzd(@account.balance) : "Not set up", @account ? "Starting capital plus recorded cash movements." : "Set up starting capital on the Account page.", "border-t-accent"],
+        ["Active signals", @active_signals.zero? ? "None" : @active_signals.to_s, @active_signals.zero? ? "Strategies analyse each completed H1 candle." : "Review them on the Signals page.", "border-t-positive"],
         ["Enabled pairs", "#{@pairs.size} of #{ProviderRequest::SYMBOLS.size}", "Pair settings arrive with currency pair preferences.", "border-t-violet"],
         ["Owner sessions", @active_sessions.to_s, "Monitoring runs while at least one is valid.", "border-t-info"]].each_with_index do |(label, value, hint, tone), index| %>
       <div class="card border-t-3 p-4 md:p-6 <%= tone %>" data-reveal-target="item" style="--delay: <%= index * 70 %>ms">

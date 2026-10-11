@@ -1,0 +1,23 @@
+<% content_for :title, "Edit #{@strategy.name} · FXTrack" %>
+
+<header class="motion-rise mb-6">
+  <%= link_to "← Strategies", strategies_path, class: "text-sm text-info hover:underline" %>
+  <h1 class="mt-2 text-2xl font-bold tracking-tight md:text-3xl">Edit <%= @strategy.name %></h1>
+  <p class="mt-1 text-muted">Saving creates version <%= @strategy.versions.maximum(:number).to_i + 1 %>. Reward multiple and risk come from your settings.</p>
+</header>
+
+<section class="card max-w-4xl">
+  <%= render "accounts/errors", record: @version %>
+  <%= form_with url: strategy_path(@strategy), method: :patch, scope: :config, class: "grid gap-5 sm:grid-cols-2" do |form| %>
+    <% SignalsHelper::CONFIG_LABELS.each do |key, (label, hint)| %>
+      <% bounds = StrategyVersion::BOUNDS.fetch(key) %>
+      <div>
+        <%= form.label key, label, class: "field-label" %>
+        <%= form.number_field key, value: @version.config[key], min: bounds.min, max: bounds.max,
+              step: StrategyVersion::INTEGER_KEYS.include?(key) ? 1 : "0.01", required: true, aria: { describedby: "#{key}-hint" }, class: "field-input" %>
+        <p id="<%= key %>-hint" class="mt-1 text-xs text-faint"><%= hint %> (<%= bounds.min %> to <%= bounds.max %>)</p>
+      </div>
+    <% end %>
+    <%= form.submit "Save as new version", class: "button button-primary cursor-pointer sm:col-span-2" %>
+  <% end %>
+</section>

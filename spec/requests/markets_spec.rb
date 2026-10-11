@@ -43,6 +43,6 @@ RSpec.describe "Markets" do
   it "shows the dashboard summaries and honest empty states" do
     log_in
     get dashboard_path
-    expect(response.body).to include("Watchlist", "Monitoring status", "Not set up", "The signal engine is not enabled yet.")
+    expect(response.body).to include("Watchlist", "Monitoring status", "Not set up", "Strategies analyse each completed H1 candle.")
   end
 end

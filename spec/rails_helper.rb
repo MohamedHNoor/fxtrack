@@ -5,6 +5,8 @@ require "rspec/rails"
 
 ActiveRecord::Migration.maintain_test_schema!
 
+Rails.root.glob("spec/support/**/*.rb").sort.each { |file| require file }
+
 RSpec.configure do |config|
   config.use_transactional_fixtures = true
 

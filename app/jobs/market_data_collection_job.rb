@@ -5,6 +5,9 @@ class MarketDataCollectionJob < ApplicationJob
 
   def perform
     return { status: "no_active_session", results: [] } unless Session.active.exists?
-    TwelveData::Collection.new.run
+    result = TwelveData::Collection.new.run
+    # Analysis runs after every cycle; it skips candles it has already evaluated.
+    signals = Strategies::SignalEngine.new.run
+    signals[:signals].positive? ? result.merge(signals: signals) : result
   end
 end

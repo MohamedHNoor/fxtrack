@@ -174,3 +174,14 @@
     transform: translateX(0);
   }
 }
+
+/* Form controls on dark app surfaces. */
+@layer components {
+  .field-label {
+    @apply mb-2 block text-sm text-muted;
+  }
+
+  .field-input {
+    @apply w-full rounded-lg border border-line bg-raised px-4 py-3 text-fg focus:border-info;
+  }
+}
