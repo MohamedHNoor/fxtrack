@@ -38,6 +38,27 @@ RSpec.describe TwelveData::Client do
     expect(client.time_series(symbol: "EUR/USD", interval: "1h").error_code).to eq("timeout")
   end
 
+  it "rejects malformed JSON and non-object bodies without exposing them" do
+    [ "secret{", '["secret"]', '"secret"', "null" ].each do |body|
+      allow(http).to receive(:body).and_return(body)
+      response = client.time_series(symbol: "EUR/USD", interval: "1h")
+      expect(response.error_code).to eq("invalid_response")
+      expect(response.inspect).not_to include("secret")
+    end
+  end
+
+  it "sanitizes transport failures and HTTP server errors" do
+    unavailable = described_class.new(key: -> { "secret" }, transport: ->(*) { raise SocketError, "secret" })
+    response = unavailable.time_series(symbol: "EUR/USD", interval: "1h")
+    expect(response.error_code).to eq("transport_error")
+    expect(response.inspect).not_to include("secret")
+    allow(http).to receive(:code).and_return("503")
+    allow(http).to receive(:body).and_return("secret")
+    response = client.time_series(symbol: "EUR/USD", interval: "1h")
+    expect(response).to have_attributes(error_code: "http_error", http_status: 503, payload: nil)
+    expect(response.inspect).not_to include("secret")
+  end
+
   it "requests a bounded history window and accepts its larger body" do
     body = { status: "ok", values: [ { datetime: "x" * 300_000 } ] }.to_json
     allow(http).to receive(:body).and_return(body)

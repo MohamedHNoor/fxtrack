@@ -21,6 +21,8 @@ module TwelveData
         live_hours: check(hours >= REQUIRED_LIVE_HOURS, "#{hours} of #{REQUIRED_LIVE_HOURS} cumulative live trading hours"),
         live_reproducibility: check(combos.all? { |row| row[:reproduced].positive? && row[:mismatches].zero? },
           "every pair/interval reproduced live closes with zero mismatches"),
+        live_freshness: check(combos.all? { |row| row[:live_fresh] },
+          "every pair/interval has a successful response covering the latest expected trading close"),
         quota: check(quota[:max_per_minute] <= Probe::MINUTE_BUDGET && quota[:max_per_day] <= Probe::DAY_BUDGET,
           "peak #{quota[:max_per_minute]}/minute and #{quota[:max_per_day]}/day within #{Probe::MINUTE_BUDGET} and #{Probe::DAY_BUDGET}"),
         retention: check(true, "owner decision recorded 2026-10-11 (docs, Retention-rights review)")
@@ -38,22 +40,30 @@ module TwelveData
     def combo(symbol, interval)
       live = ProviderRequest.where(symbol: symbol, interval: interval, endpoint: "time_series", requested_at: LIVE_START..)
       live_metrics = DataQualityMetric.where(provider_request: live)
-      history = DataQualityMetric.joins(:provider_request).where(provider_requests: { symbol: symbol, interval: interval,
-        endpoint: "time_series_history", status: "success" })
+      history_metrics = DataQualityMetric.joins(:provider_request).where(provider_requests: { symbol: symbol, interval: interval,
+        endpoint: "time_series_history" })
+      history = history_metrics.where(provider_requests: { status: "success" })
       latest = live_metrics.order(:evaluated_at, :id).last
+      latest_request = live.order(:requested_at, :id).last
+      duration = Quality::DURATIONS.fetch(interval)
+      expected_close = MarketHours.last_expected_open(@clock.call.utc, duration) + duration
       {
         symbol: symbol, interval: interval,
         requests: live.count, outcomes: live.group(:status).count, errors: live.where.not(error_code: nil).group(:error_code).count,
         reproduced: live_metrics.sum(:reproduced_count), mismatches: live_metrics.sum(:mismatch_count),
         invalid_candles: live_metrics.sum(:invalid_count), latest_status: latest&.status, latest_freshness_seconds: latest&.freshness_seconds,
-        history_measured: history.exists?, history_repeated: history.count >= 2, history_mismatches: history.sum(:mismatch_count)
+        live_fresh: latest_request&.status == "success" && latest&.latest_closed_at.present? &&
+          %w[valid closed].include?(latest.status) && latest.latest_closed_at >= expected_close,
+        history_measured: history.exists?, history_repeated: history.count >= 2, history_mismatches: history_metrics.sum(:mismatch_count)
       }
     end
 
-    # Active collection is measured as distinct trading-hour buckets containing a
-    # live request; bin/dev restarts leave operator gaps, not provider gaps.
+    # Failed attempts and responses without trading candles do not prove active
+    # collection. Restarts leave operator gaps, not provider gaps.
     def live_hours
-      ProviderRequest.where(endpoint: "time_series", requested_at: LIVE_START..@clock.call)
+      ProviderRequest.joins(:data_quality_metric)
+        .where(endpoint: "time_series", status: "success", requested_at: LIVE_START..@clock.call)
+        .where(data_quality_metrics: { status: %w[valid closed] }).where("data_quality_metrics.closed_count > 0")
         .pluck(Arel.sql("DISTINCT date_trunc('hour', requested_at)"))
         .count { |hour| !MarketHours.closed?(hour.utc) }
     end

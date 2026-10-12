@@ -1,8 +1,11 @@
 # Twelve Data feasibility evidence
 
-Status: diagnostic implementation in progress. A bounded live request failed
-before any HTTP response; seven-day observation and provider price persistence
-have not started. M00 remains open.
+Status as of 2026-10-12 (Auckland): M00 remains open. All fourteen history
+windows have been measured and repeated with zero recorded fingerprint
+mismatches. Candle persistence is active under the owner's retention decision.
+The 48 cumulative live trading-hour window and live reproducibility/freshness
+evidence remain incomplete. Earlier sections below retain the chronological
+implementation evidence and superseded blockers.
 
 ## Verified documentation
 
@@ -53,6 +56,23 @@ continuous absence of other consumers, or a completed observation window.
   at least 48 hours of live trading-day collection (see Acceptance window).
 
 ## Current local checks
+
+### Quote and spread measurement, 2026-10-12 (Auckland)
+
+One quota-reserved EUR/USD H1 probe succeeded. Its candle entries contained
+only `datetime`, `open`, `high`, `low` and `close`; no bid, ask or spread fields
+were present. No raw prices, response body or credentials were recorded here.
+This measures that response only, not all provider products or endpoints.
+OHLC feed prices do not establish an executable broker quote, spread or fill.
+Treat the feed as indicative decision-support data; broker-specific execution
+and composite-feed differences remain outside this candle evidence.
+
+### Automated checks, 2026-10-12 (Auckland)
+
+The resumed M00 changes passed `bin/ci`: 172 RSpec examples, RuboCop and all
+configured security checks. Fixture tests cover malformed response bodies,
+sanitized transport/HTTP failures and candle ordering/window validation.
+Automated checks do not replace the required live collection window.
 
 RSpec Rails tests: bundle exec rspec. Uses the isolated fxtrack_test database.
 Provider responses will be stubbed; automated tests must not use the real key.
@@ -395,5 +415,9 @@ Check progress against this gate with `bin/rails twelve_data:acceptance`. It
 prints each criterion as passed or pending, then one line per pair/interval
 with live requests, outcomes, error codes, reproduced and mismatched closes,
 invalid candles, latest freshness and history-window status. Live hours count
-distinct trading-hour buckets containing a live request since 2026-10-11
-21:00 UTC; weekend hours never count.
+distinct trading-hour buckets containing a successful live request with a
+valid or closed quality result and at least one trading candle since
+2026-10-11 21:00 UTC; failed attempts and weekend hours never count.
+Rejected history responses remain included in mismatch totals. The live
+freshness check requires every pair/interval to cover its latest expected
+trading close, with no newer failed request.

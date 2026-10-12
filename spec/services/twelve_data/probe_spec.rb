@@ -40,6 +40,36 @@ RSpec.describe TwelveData::Probe do
     expect(probe.run(symbol: "EUR/USD", interval: "1h")).to eq("provider_failure")
     expect(sleeper).not_to have_received(:call)
   end
+
+  it "stops at the daily budget and resumes after the UTC day resets" do
+    stub_const("TwelveData::Probe::DAY_BUDGET", 2)
+    2.times do |i|
+      ProviderRequest.create!(symbol: "EUR/USD", interval: "1h", endpoint: "time_series",
+        requested_at: now - (i + 1).hours, status: "provider_failure")
+    end
+    expect(client).not_to receive(:time_series)
+    expect(described_class.new(client: client, clock: -> { now }).run(symbol: "EUR/USD", interval: "1h")).to eq("quota_paused")
+    expect(ProviderRequest.count).to eq(2)
+    next_day_client = instance_double(TwelveData::Client)
+    expect(next_day_client).to receive(:time_series).and_return(failure.with(error_code: "provider_error"))
+    expect(described_class.new(client: next_day_client, clock: -> { now + 1.day }).run(symbol: "EUR/USD", interval: "1h")).to eq("provider_failure")
+    expect(ProviderRequest.count).to eq(3)
+  end
+
+  it "preserves remote credit headroom without reserving another request" do
+    ProviderRequest.create!(symbol: "EUR/USD", interval: "1h", endpoint: "time_series",
+      requested_at: now, status: "success", credits_used: 7, credits_left: 1)
+    expect(client).not_to receive(:time_series)
+    expect { described_class.new(client: client, clock: -> { now }).run(symbol: "NZD/USD", interval: "1h") }
+      .not_to change(ProviderRequest, :count)
+  end
+
+  it "rejects unsupported input before reserving credits" do
+    probe = described_class.new(client: client, clock: -> { now })
+    expect { probe.run(symbol: "XXX/USD", interval: "1h") }.to raise_error(ArgumentError, "Unsupported forex symbol")
+    expect { probe.run(symbol: "EUR/USD", interval: "5m") }.to raise_error(ArgumentError, "Unsupported interval")
+    expect(ProviderRequest.count).to eq(0)
+  end
 end
 
 RSpec.describe "Catalogue probing" do

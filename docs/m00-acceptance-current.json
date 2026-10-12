@@ -1,0 +1,280 @@
+{
+  "generated_at": "2026-10-12 02:01:35 UTC",
+  "gate": "pending",
+  "checks": {
+    "history_windows": {
+      "pass": true,
+      "detail": "every pair/interval has a valid history window"
+    },
+    "revision_check": {
+      "pass": true,
+      "detail": "every history window was repeated with zero fingerprint mismatches"
+    },
+    "live_hours": {
+      "pass": false,
+      "detail": "5 of 48 cumulative live trading hours"
+    },
+    "live_reproducibility": {
+      "pass": false,
+      "detail": "every pair/interval reproduced live closes with zero mismatches"
+    },
+    "live_freshness": {
+      "pass": false,
+      "detail": "every pair/interval has a successful response covering the latest expected trading close"
+    },
+    "quota": {
+      "pass": true,
+      "detail": "peak 7/minute and 22/day within 7 and 720"
+    },
+    "retention": {
+      "pass": true,
+      "detail": "owner decision recorded 2026-10-11 (docs, Retention-rights review)"
+    }
+  },
+  "live_hours": 5,
+  "quota": {
+    "max_per_minute": 7,
+    "max_per_day": 22,
+    "total": 36
+  },
+  "combos": [
+    {
+      "symbol": "EUR/USD",
+      "interval": "1h",
+      "requests": 6,
+      "outcomes": {
+        "success": 6
+      },
+      "errors": {},
+      "reproduced": 14,
+      "mismatches": 0,
+      "invalid_candles": 0,
+      "latest_status": "valid",
+      "latest_freshness_seconds": 62,
+      "live_fresh": true,
+      "history_measured": true,
+      "history_repeated": true,
+      "history_mismatches": 0
+    },
+    {
+      "symbol": "EUR/USD",
+      "interval": "4h",
+      "requests": 0,
+      "outcomes": {},
+      "errors": {},
+      "reproduced": 0,
+      "mismatches": 0,
+      "invalid_candles": 0,
+      "latest_status": null,
+      "latest_freshness_seconds": null,
+      "live_fresh": false,
+      "history_measured": true,
+      "history_repeated": true,
+      "history_mismatches": 0
+    },
+    {
+      "symbol": "GBP/USD",
+      "interval": "1h",
+      "requests": 5,
+      "outcomes": {
+        "success": 5
+      },
+      "errors": {},
+      "reproduced": 10,
+      "mismatches": 0,
+      "invalid_candles": 0,
+      "latest_status": "valid",
+      "latest_freshness_seconds": 60,
+      "live_fresh": true,
+      "history_measured": true,
+      "history_repeated": true,
+      "history_mismatches": 0
+    },
+    {
+      "symbol": "GBP/USD",
+      "interval": "4h",
+      "requests": 0,
+      "outcomes": {},
+      "errors": {},
+      "reproduced": 0,
+      "mismatches": 0,
+      "invalid_candles": 0,
+      "latest_status": null,
+      "latest_freshness_seconds": null,
+      "live_fresh": false,
+      "history_measured": true,
+      "history_repeated": true,
+      "history_mismatches": 0
+    },
+    {
+      "symbol": "USD/JPY",
+      "interval": "1h",
+      "requests": 5,
+      "outcomes": {
+        "success": 5
+      },
+      "errors": {},
+      "reproduced": 10,
+      "mismatches": 0,
+      "invalid_candles": 0,
+      "latest_status": "valid",
+      "latest_freshness_seconds": 61,
+      "live_fresh": true,
+      "history_measured": true,
+      "history_repeated": true,
+      "history_mismatches": 0
+    },
+    {
+      "symbol": "USD/JPY",
+      "interval": "4h",
+      "requests": 0,
+      "outcomes": {},
+      "errors": {},
+      "reproduced": 0,
+      "mismatches": 0,
+      "invalid_candles": 0,
+      "latest_status": null,
+      "latest_freshness_seconds": null,
+      "live_fresh": false,
+      "history_measured": true,
+      "history_repeated": true,
+      "history_mismatches": 0
+    },
+    {
+      "symbol": "USD/CHF",
+      "interval": "1h",
+      "requests": 5,
+      "outcomes": {
+        "success": 5
+      },
+      "errors": {},
+      "reproduced": 10,
+      "mismatches": 0,
+      "invalid_candles": 0,
+      "latest_status": "valid",
+      "latest_freshness_seconds": 61,
+      "live_fresh": true,
+      "history_measured": true,
+      "history_repeated": true,
+      "history_mismatches": 0
+    },
+    {
+      "symbol": "USD/CHF",
+      "interval": "4h",
+      "requests": 0,
+      "outcomes": {},
+      "errors": {},
+      "reproduced": 0,
+      "mismatches": 0,
+      "invalid_candles": 0,
+      "latest_status": null,
+      "latest_freshness_seconds": null,
+      "live_fresh": false,
+      "history_measured": true,
+      "history_repeated": true,
+      "history_mismatches": 0
+    },
+    {
+      "symbol": "USD/CAD",
+      "interval": "1h",
+      "requests": 5,
+      "outcomes": {
+        "success": 5
+      },
+      "errors": {},
+      "reproduced": 10,
+      "mismatches": 0,
+      "invalid_candles": 0,
+      "latest_status": "valid",
+      "latest_freshness_seconds": 61,
+      "live_fresh": true,
+      "history_measured": true,
+      "history_repeated": true,
+      "history_mismatches": 0
+    },
+    {
+      "symbol": "USD/CAD",
+      "interval": "4h",
+      "requests": 0,
+      "outcomes": {},
+      "errors": {},
+      "reproduced": 0,
+      "mismatches": 0,
+      "invalid_candles": 0,
+      "latest_status": null,
+      "latest_freshness_seconds": null,
+      "live_fresh": false,
+      "history_measured": true,
+      "history_repeated": true,
+      "history_mismatches": 0
+    },
+    {
+      "symbol": "AUD/USD",
+      "interval": "1h",
+      "requests": 5,
+      "outcomes": {
+        "success": 5
+      },
+      "errors": {},
+      "reproduced": 10,
+      "mismatches": 0,
+      "invalid_candles": 0,
+      "latest_status": "valid",
+      "latest_freshness_seconds": 62,
+      "live_fresh": true,
+      "history_measured": true,
+      "history_repeated": true,
+      "history_mismatches": 0
+    },
+    {
+      "symbol": "AUD/USD",
+      "interval": "4h",
+      "requests": 0,
+      "outcomes": {},
+      "errors": {},
+      "reproduced": 0,
+      "mismatches": 0,
+      "invalid_candles": 0,
+      "latest_status": null,
+      "latest_freshness_seconds": null,
+      "live_fresh": false,
+      "history_measured": true,
+      "history_repeated": true,
+      "history_mismatches": 0
+    },
+    {
+      "symbol": "NZD/USD",
+      "interval": "1h",
+      "requests": 5,
+      "outcomes": {
+        "success": 5
+      },
+      "errors": {},
+      "reproduced": 10,
+      "mismatches": 0,
+      "invalid_candles": 0,
+      "latest_status": "valid",
+      "latest_freshness_seconds": 62,
+      "live_fresh": true,
+      "history_measured": true,
+      "history_repeated": true,
+      "history_mismatches": 0
+    },
+    {
+      "symbol": "NZD/USD",
+      "interval": "4h",
+      "requests": 0,
+      "outcomes": {},
+      "errors": {},
+      "reproduced": 0,
+      "mismatches": 0,
+      "invalid_candles": 0,
+      "latest_status": null,
+      "latest_freshness_seconds": null,
+      "live_fresh": false,
+      "history_measured": true,
+      "history_repeated": true,
+      "history_mismatches": 0
+    }
+  ]
+}

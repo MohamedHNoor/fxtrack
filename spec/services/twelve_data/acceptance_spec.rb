@@ -21,11 +21,27 @@ RSpec.describe TwelveData::Acceptance do
   end
 
   it "counts distinct trading hours but not weekend hours" do
-    request("time_series", Time.utc(2026, 10, 12, 1, 5))
-    request("time_series", Time.utc(2026, 10, 12, 1, 40))
-    request("time_series", Time.utc(2026, 10, 12, 2, 5))
-    request("time_series", Time.utc(2026, 10, 11, 18, 5)) # Sunday closure, before the live start
+    metric(request("time_series", Time.utc(2026, 10, 12, 1, 5)))
+    metric(request("time_series", Time.utc(2026, 10, 12, 1, 40)))
+    metric(request("time_series", Time.utc(2026, 10, 12, 2, 5)))
+    metric(request("time_series", Time.utc(2026, 10, 11, 18, 5))) # Sunday closure, before the live start
     expect(result[:live_hours]).to eq(2)
+  end
+
+  it "does not count failed attempts or responses without trading candles as live hours" do
+    request("time_series", Time.utc(2026, 10, 12, 1), status: "provider_failure")
+    metric(request("time_series", Time.utc(2026, 10, 12, 2)), closed_count: 0)
+    request("time_series", Time.utc(2026, 10, 12, 3), status: "reserved")
+    expect(result[:live_hours]).to eq(0)
+  end
+
+  it "retains mismatches from rejected history responses in the revision verdict" do
+    2.times { |i| metric(request("time_series_history", Time.utc(2026, 10, 11, 16 + i))) }
+    metric(request("time_series_history", Time.utc(2026, 10, 11, 18), status: "invalid_data"),
+      status: "unreproducible", mismatch_count: 1)
+    row = result[:combos].find { |item| item[:symbol] == "EUR/USD" && item[:interval] == "1h" }
+    expect(row).to include(history_repeated: true, history_mismatches: 1)
+    expect(result[:checks][:revision_check][:pass]).to be(false)
   end
 
   it "fails live reproducibility when any mismatch is recorded" do
@@ -47,5 +63,21 @@ RSpec.describe TwelveData::Acceptance do
     3.times { |i| request("time_series", Time.utc(2026, 10, 12, 4, 0, i), symbol: ProviderRequest::SYMBOLS[i]) }
     expect(result[:quota]).to include(max_per_minute: 3, max_per_day: 3, total: 3)
     expect(result[:checks][:quota][:pass]).to be(true)
+  end
+
+  it "requires a current successful live close and detects a newer provider failure" do
+    duration = TwelveData::Quality::DURATIONS.fetch("1h")
+    expected_close = TwelveData::MarketHours.last_expected_open(now, duration) + duration
+    metric(request("time_series", now - 60), latest_closed_at: expected_close)
+    row = -> { described_class.new(clock: -> { now }).call[:combos].first }
+    expect(row.call[:live_fresh]).to be(true)
+    request("time_series", now, status: "provider_failure")
+    expect(row.call[:live_fresh]).to be(false)
+  end
+
+  it "rejects old live closes even when their response was valid" do
+    metric(request("time_series", now - 2.hours), latest_closed_at: now - 2.hours)
+    expect(result[:combos].first[:live_fresh]).to be(false)
+    expect(result[:checks][:live_freshness][:pass]).to be(false)
   end
 end

@@ -43,6 +43,22 @@ RSpec.describe TwelveData::Quality do
     result = evaluator.evaluate(payload("EUR/USD", "1h", [ bar, bar.merge("datetime" => "2026-10-12 11:00:00") ]), symbol: "EUR/USD", interval: "1h")
     expect(result).to include(status: "gaps", gap_count: 2)
   end
+
+  it "rejects future candles and reversed timestamp order" do
+    [ [ bar.merge("datetime" => "2026-10-12 13:00:00") ],
+      [ bar, bar.merge("datetime" => "2026-10-12 07:00:00") ] ].each do |bars|
+      result = evaluator.evaluate(payload("EUR/USD", "1h", bars), symbol: "EUR/USD", interval: "1h")
+      expect(result[:status]).to eq("invalid")
+      expect(result).not_to have_key(:candles)
+    end
+  end
+
+  it "rejects mismatched metadata and oversized windows" do
+    wrong = payload("NZD/USD", "1h", [ bar ])
+    expect(evaluator.evaluate(wrong, symbol: "EUR/USD", interval: "1h")[:status]).to eq("invalid")
+    oversized = payload("EUR/USD", "1h", Array.new(9, bar))
+    expect(evaluator.evaluate(oversized, symbol: "EUR/USD", interval: "1h")[:status]).to eq("invalid")
+  end
 end
 
 RSpec.describe TwelveData::Quality, "fingerprints" do
