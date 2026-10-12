@@ -12,6 +12,7 @@ module Strategies
     def run
       now = @clock.call
       user = User.first or return { runs: 0, signals: 0 }
+      return { runs: 0, signals: 0 } unless user.sessions.active(now).exists?
       update_lifecycles(now)
       Strategy.ensure_default_for(user)
       profile = RiskProfile.for(user)
@@ -31,6 +32,7 @@ module Strategies
 
     private
       def evaluate(version, symbol, profile, balance, now)
+        return unless version.strategy.user.sessions.active(@clock.call).exists?
         h1 = Candle.series(symbol, "1h").last(CANDLES)
         latest = h1.last
         return unless latest && MarketSnapshot.for(symbol, "1h", now: now).state == :fresh
@@ -39,9 +41,18 @@ module Strategies
         h4 = Candle.series(symbol, "4h").last(CANDLES)
         verdict = TrendPullback.new(config: version.config, reward_ratio: profile.reward_ratio, pip_size: CurrencyPair.pip_size(symbol))
           .evaluate(h4: h4, h1: h1)
+        h4_snapshot = MarketSnapshot.for(symbol, "4h", now: now)
+        if verdict.trade? && (h4_snapshot.state != :fresh || h4_snapshot.last_request&.status == "invalid_data")
+          verdict = TrendPullback::Verdict.new(direction: nil, reasons: [ "H4 data is not fresh; waiting for current trend evidence" ],
+            entry: nil, stop: nil, target: nil, tolerance: nil, evidence: verdict.evidence)
+        end
         expires_at = latest.closed_at + version.setting("expiry_minutes").minutes
 
         TradeSignal.transaction do
+          # Revocation/deletion of this eligible session waits until persistence
+          # finishes, so logout and signal creation have a defined order.
+          return unless version.strategy.user.sessions.active(@clock.call).order(:id).lock.first
+          return unless CurrencyPair.enabled.where(symbol: symbol).lock.first
           run = StrategyRun.create!(strategy_version: version, symbol: symbol, candle_opened_at: latest.opened_at, evaluated_at: now,
             verdict: verdict.direction || "wait", explanation: { "reasons" => verdict.reasons, "evidence" => verdict.evidence })
           if verdict.trade? && expires_at > now

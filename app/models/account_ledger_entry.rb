@@ -18,6 +18,7 @@ class AccountLedgerEntry < ApplicationRecord
   validates :reverses_entry_id, uniqueness: true, allow_nil: true
   validate :reversal_matches_original, if: -> { kind == "reversal" && reverses_entry }
   validate :withdrawal_within_balance, on: :create, if: -> { kind == "withdrawal" }
+  before_validation :lock_account_for_creation, on: :create
 
   before_destroy { raise ActiveRecord::ReadOnlyRecord, "Ledger entries are immutable" }
 
@@ -35,6 +36,12 @@ class AccountLedgerEntry < ApplicationRecord
   end
 
   private
+    # save wraps validation and insertion in a transaction. Locking the shared
+    # account serializes balance checks across concurrent requests.
+    def lock_account_for_creation
+      TradingAccount.where(id: trading_account_id).lock.pick(:id) if trading_account_id
+    end
+
     def reversal_matches_original
       errors.add(:reverses_entry, "is already a reversal") if reverses_entry.kind == "reversal"
       errors.add(:reverses_entry, "belongs to another account") if reverses_entry.trading_account_id != trading_account_id

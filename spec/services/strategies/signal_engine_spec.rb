@@ -7,6 +7,7 @@ RSpec.describe Strategies::SignalEngine do
   let(:now) { setup[:h1].last.opened_at + 1.hour + 5.minutes }
 
   before do
+    user.sessions.create!(created_at: now, last_active_at: now)
     user.create_trading_account!(starting_capital: 2000, started_at: 1.month.ago)
     store("EUR/USD", "1h", setup[:h1])
     store("EUR/USD", "4h", setup[:h4])
@@ -40,6 +41,35 @@ RSpec.describe Strategies::SignalEngine do
 
   it "ignores stale data instead of creating retroactive signals" do
     expect(engine(now + 3.hours).run).to eq(runs: 0, signals: 0)
+  end
+
+  it "records WAIT instead of a trade when H4 is stale" do
+    Candle.where(symbol: "EUR/USD", interval: "4h").update_all("opened_at = opened_at - interval '1 day'")
+    engine.run
+    expect(TradeSignal.count).to eq(0)
+    expect(StrategyRun.find_by!(symbol: "EUR/USD").explanation["reasons"]).to include(a_string_including("H4 data is not fresh"))
+  end
+
+  it "does not analyse without an active session" do
+    Session.delete_all
+    expect(engine.run).to eq(runs: 0, signals: 0)
+    expect(StrategyRun.count).to eq(0)
+  end
+
+  it "does not persist a run when the last session is revoked during evaluation" do
+    allow_any_instance_of(Strategies::TrendPullback).to receive(:evaluate).and_wrap_original do |original, **args|
+      Session.delete_all
+      original.call(**args)
+    end
+    expect(engine.run).to eq(runs: 0, signals: 0)
+    expect(StrategyRun.count).to eq(0)
+    expect(TradeSignal.count).to eq(0)
+  end
+
+  it "does not create a trade when the H4 provider is failing despite current stored candles" do
+    ProviderRequest.create!(symbol: "EUR/USD", interval: "4h", endpoint: "time_series", requested_at: now, status: "provider_failure")
+    engine.run
+    expect(TradeSignal.count).to eq(0)
   end
 
   it "expires signals and invalidates them when a newer candle trades through the stop" do

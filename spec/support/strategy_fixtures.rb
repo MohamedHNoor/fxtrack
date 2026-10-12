@@ -18,7 +18,8 @@ module StrategyFixtures
     moves = [ [ "1.1275", "1.1262" ], [ "1.1262", "1.1252" ], [ "1.1256", "1.1266" ], [ "1.1266", "1.1280" ], [ "1.1280", "1.1294" ],
               [ "1.1294", "1.1306" ], [ resistance ? "1.1303" : "1.1306", "1.1300" ], [ "1.1300", "1.1282" ], [ "1.1282", "1.1256" ], [ "1.1255", "1.1290" ] ]
     moves.each_with_index { |(open, close), k| h1 << bar(start + (56 + k).hours, open, close) }
-    { h4: uptrend(60, start: start - 240.hours, step_hours: 4), h1: h1 }
+    h4_close = Time.at(((h1.last.opened_at + 1.hour).to_i / 14_400) * 14_400).utc
+    { h4: uptrend(60, start: h4_close - 240.hours, step_hours: 4), h1: h1 }
   end
 
   def mirror(series, around: "2.3")

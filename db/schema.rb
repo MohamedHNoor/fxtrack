@@ -166,6 +166,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_12_130000) do
     t.string "reason"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.jsonb "email_payload"
+    t.datetime "first_attempted_at"
     t.index ["status"], name: "index_signal_deliveries_on_status"
     t.index ["trade_signal_id", "channel", "event"], name: "index_signal_deliveries_once", unique: true
     t.index ["trade_signal_id"], name: "index_signal_deliveries_on_trade_signal_id"

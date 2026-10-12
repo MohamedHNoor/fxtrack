@@ -93,4 +93,79 @@ RSpec.describe SignalAlertJob do
     perform_enqueued_jobs
     expect(signal.signal_deliveries.sole).to have_attributes(status: "failed", attempts: 1, reason: "Rejected by the email provider")
   end
+
+  it "freezes the HTTP payload and idempotency key across ambiguous retries" do
+    signal = create_signal
+    delivery = signal.signal_deliveries.sole
+    allow(ActionMailer::Base).to receive(:delivery_method).and_return(:smtp)
+    sender = instance_double(ResendSignalSender)
+    allow(ResendSignalSender).to receive(:new).and_return(sender)
+    calls = []
+    allow(sender).to receive(:send) do |payload, idempotency_key:|
+      calls << [ payload, idempotency_key ]
+      raise ResendSignalSender::TransientError if calls.size == 1
+    end
+    perform_enqueued_jobs
+    signal.strategy_version.strategy.update!(name: "Renamed after the first send")
+    perform_enqueued_jobs
+    expect(calls.size).to eq(2)
+    expect(calls.first).to eq(calls.last)
+    expect(delivery.reload).to have_attributes(status: "sent", attempts: 2, first_attempted_at: be_present)
+  end
+
+  it "refuses retries outside the provider idempotency window" do
+    signal = create_signal
+    delivery = signal.signal_deliveries.sole
+    delivery.update!(first_attempted_at: 25.hours.ago)
+    expect(SignalMailer).not_to receive(:with)
+    described_class.perform_now(delivery)
+    expect(delivery.reload).to have_attributes(status: "failed", error_code: "idempotency_window_expired")
+  end
+
+  it "reloads a stale pending delivery before sending" do
+    signal = create_signal
+    stale = signal.signal_deliveries.sole
+    described_class.perform_now(SignalDelivery.find(stale.id))
+    described_class.perform_now(stale)
+    expect(ActionMailer::Base.deliveries.size).to eq(1)
+  end
+
+  context "with simultaneous workers" do
+    self.use_transactional_tests = false
+
+    it "sends one message when two workers load the same pending delivery" do
+      signal = create_signal
+      delivery_id = signal.signal_deliveries.sole.id
+      ready, start = Queue.new, Queue.new
+      threads = 2.times.map do
+        Thread.new do
+          ActiveRecord::Base.connection_pool.with_connection do
+            delivery = SignalDelivery.find(delivery_id)
+            ready << true
+            start.pop
+            described_class.perform_now(delivery)
+          end
+        end
+      end
+      2.times { ready.pop }
+      2.times { start << true }
+      threads.each(&:value)
+      expect(ActionMailer::Base.deliveries.size).to eq(1)
+      expect(SignalDelivery.find(delivery_id)).to have_attributes(status: "sent", attempts: 1)
+    ensure
+      threads&.each(&:join)
+      if user&.persisted?
+        versions = StrategyVersion.where(strategy_id: user.strategies.select(:id))
+        signals = TradeSignal.where(strategy_version_id: versions.select(:id))
+        SignalDelivery.where(trade_signal_id: signals.select(:id)).delete_all
+        signals.delete_all
+        StrategyRun.where(strategy_version_id: versions.select(:id)).delete_all
+        versions.delete_all
+        Strategy.where(user_id: user.id).delete_all
+        user.sessions.delete_all
+        NotificationPreference.where(user_id: user.id).delete_all
+        User.where(id: user.id).delete_all
+      end
+    end
+  end
 end

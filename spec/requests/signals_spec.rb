@@ -12,6 +12,7 @@ RSpec.describe "Signals and strategies" do
   end
 
   def generate_signal
+    owner.sessions.update_all(created_at: setup[:h1].last.opened_at, last_active_at: setup[:h1].last.opened_at)
     owner.create_trading_account!(starting_capital: 2000, started_at: 1.month.ago)
     store("EUR/USD", "1h", setup[:h1])
     store("EUR/USD", "4h", setup[:h4])
@@ -69,5 +70,15 @@ RSpec.describe "Signals and strategies" do
     get strategies_path
     expect { get edit_strategy_path(id: owner.strategies.maximum(:id) + 1) }.not_to raise_error
     expect(response).to have_http_status(:not_found)
+  end
+
+  it "clones maximum-length names into unique valid copies" do
+    get strategies_path
+    strategy = owner.strategies.sole
+    strategy.update!(name: "A" * 80)
+    2.times { post clone_strategy_path(strategy); expect(response).to have_http_status(:redirect) }
+    names = owner.strategies.where.not(id: strategy.id).pluck(:name)
+    expect(names.uniq.size).to eq(2)
+    expect(names.map(&:length)).to eq([ 80, 80 ])
   end
 end

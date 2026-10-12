@@ -9,6 +9,7 @@ class MarketDataCollectionJob < ApplicationJob
     return { status: "no_enabled_pairs", results: [] } if symbols.empty?
 
     result = TwelveData::Collection.new(symbols: symbols).run
+    return result unless Session.active.exists?
     # Analysis runs after every cycle on enabled pairs; it skips candles it has already evaluated.
     signals = Strategies::SignalEngine.new.run
     signals[:signals].positive? ? result.merge(signals: signals) : result

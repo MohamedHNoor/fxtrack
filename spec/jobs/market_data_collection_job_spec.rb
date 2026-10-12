@@ -20,6 +20,16 @@ RSpec.describe MarketDataCollectionJob do
     expect(TwelveData::Collection).not_to receive(:new)
     described_class.perform_now
   end
+
+  it "does not analyse after the last session is revoked during collection" do
+    user = User.create!(email_address: "owner@example.com", password: "correct horse battery")
+    user.sessions.create!
+    collection = instance_double(TwelveData::Collection)
+    allow(TwelveData::Collection).to receive(:new).and_return(collection)
+    allow(collection).to receive(:run) { Session.delete_all; { status: "collected", results: [] } }
+    expect(Strategies::SignalEngine).not_to receive(:new)
+    described_class.perform_now
+  end
 end
 
 RSpec.describe MarketDataCollectionJob, "pair eligibility" do

@@ -1,6 +1,6 @@
 # Email alerts
 
-FXTrack emails signal alerts through Resend SMTP (`smtp.resend.com:465`, TLS)
+FXTrack emails signal alerts through Resend's HTTPS API (`POST /emails`)
 from `FXTrack <info@contact.mohamedhnoor.com>` to the owner's login address. Telegram
 is deferred.
 
@@ -46,4 +46,15 @@ Authentication or rejected-message errors fail immediately. Failures appear on
 `/alerts` (recent deliveries) and on each signal card; error messages and keys
 are never stored.
 
-Password-reset emails use the same Resend configuration.
+Signal sends hold a database row lock so overlapping workers cannot send the
+same delivery concurrently. Before the first HTTP request, the exact message
+payload and first-attempt timestamp are stored. Retries reuse that payload and
+a stable delivery-specific `Idempotency-Key`. HTTP 429, 5xx, concurrent-key
+responses and transport failures retry; rejected payloads/credentials fail.
+Retries at or beyond 24 hours from the first attempt fail visibly instead of
+risking a duplicate outside Resend's documented idempotency window.
+See [Resend idempotency documentation](https://resend.com/docs/dashboard/emails/idempotency-keys).
+Development file delivery and test delivery continue using Action Mailer.
+
+Password-reset emails and the manual test email still use the configured
+Action Mailer delivery method (Resend SMTP when configured).

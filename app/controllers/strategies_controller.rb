@@ -27,7 +27,10 @@ class StrategiesController < ApplicationController
   end
 
   def clone
-    name = (1..).lazy.map { |n| n == 1 ? "#{@strategy.name} copy" : "#{@strategy.name} copy #{n}" }.find { |candidate| !Current.user.strategies.exists?(name: candidate) }
+    name = (1..).lazy.map do |n|
+      suffix = n == 1 ? " copy" : " copy #{n}"
+      "#{@strategy.name.first(80 - suffix.length)}#{suffix}"
+    end.find { |candidate| !Current.user.strategies.exists?(name: candidate) }
     copy = @strategy.clone_as!(name)
     redirect_to strategies_path, status: :see_other, notice: "Created #{copy.name} (disabled). Edit it, then enable it."
   end
