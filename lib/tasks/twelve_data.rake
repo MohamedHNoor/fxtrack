@@ -92,6 +92,8 @@ namespace :twelve_data do
       puts({ symbol: symbol, interval: interval, provider_earliest_timestamp: earliest&.earliest_opened_at,
         history_window: window&.attributes&.slice("status", "earliest_opened_at", "latest_closed_at", "closed_count", "closure_count", "invalid_count", "gap_count", "duplicate_count")&.merge("span_days" => span) }.to_json)
     end
-    puts({ gate: "pending", historical_retention: "unresolved", closure_policy: "new_york_17_convention" }.to_json)
+    acceptance = TwelveData::Acceptance.new.call
+    puts({ gate: acceptance[:gate], historical_retention: acceptance[:checks][:retention][:detail],
+      closure_policy: "new_york_17_convention" }.to_json)
   end
 end

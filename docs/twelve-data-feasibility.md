@@ -171,8 +171,12 @@ Reference: https://github.com/ruby/openssl/issues/952
 Run `bin/rails twelve_data:collect` for one bounded cycle. It orders pairs by
 oldest request so quota pauses do not starve later combinations. Repeat on the
 next minute to continue coverage. Successful H1/H4 requests are due only after
-their observed next close plus a 60-second publication grace period. H4 is not
-fetched every hour. Overlapping collection processes return already_running;
+their observed next close plus a 60-second publication grace period. Stale or
+gapped results follow the same rule from the close expected at request time,
+because they cannot improve until another candle closes; provider failures and
+other invalid data retry after 60 seconds. A close published more than 60
+seconds late is therefore collected one candle period later (about one hour for
+H1, four for H4). H4 is not fetched every hour. Overlapping collection processes return already_running;
 a session advisory lock is released in ensure. No scheduler or background
 production worker was enabled. Stop collection by ceasing task invocations;
 resume uses persisted request/evaluation evidence. Do not infer market closure

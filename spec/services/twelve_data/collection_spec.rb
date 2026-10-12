@@ -74,3 +74,39 @@ RSpec.describe TwelveData::Collection, "history isolation" do
     expect(called).not_to include(symbol: "EUR/USD", interval: "1h")
   end
 end
+
+RSpec.describe TwelveData::Collection, "stale and gapped results" do
+  let(:probe) { instance_double(TwelveData::Probe) }
+  let(:requested_at) { Time.utc(2026, 10, 12, 11, 1, 30) }
+
+  def called_at(now)
+    called = []
+    allow(probe).to receive(:run) { |**args| called << args; "success" }
+    described_class.new(probe: probe, clock: -> { now }).run
+    called
+  end
+
+  def rejected(status, latest_closed_at)
+    request = ProviderRequest.create!(symbol: "EUR/USD", interval: "1h", endpoint: "time_series", requested_at: requested_at,
+      status: "invalid_data", error_code: "invalid_response")
+    request.create_data_quality_metric!(status: status, evaluated_at: requested_at, latest_closed_at: latest_closed_at,
+      closed_count: 8, incomplete_count: 0, duplicate_count: 0, gap_count: status == "gaps" ? 1 : 0)
+  end
+
+  it "waits for the next expected close after a gapped result" do
+    rejected("gaps", Time.utc(2026, 10, 12, 11))
+    expect(called_at(Time.utc(2026, 10, 12, 11, 30))).not_to include(symbol: "EUR/USD", interval: "1h")
+    expect(called_at(Time.utc(2026, 10, 12, 12, 1))).to include(symbol: "EUR/USD", interval: "1h")
+  end
+
+  it "waits for the next expected close after a stale result" do
+    rejected("stale", Time.utc(2026, 10, 12, 9))
+    expect(called_at(Time.utc(2026, 10, 12, 11, 30))).not_to include(symbol: "EUR/USD", interval: "1h")
+    expect(called_at(Time.utc(2026, 10, 12, 12, 1))).to include(symbol: "EUR/USD", interval: "1h")
+  end
+
+  it "still retries other invalid data after a minute" do
+    rejected("invalid", nil)
+    expect(called_at(requested_at + 61)).to include(symbol: "EUR/USD", interval: "1h")
+  end
+end
