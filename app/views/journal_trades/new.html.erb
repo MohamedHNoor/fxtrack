@@ -1,0 +1,25 @@
+<% content_for :title, "Record trade · FXTrack" %>
+
+<header class="motion-rise mb-8">
+  <%= link_to "← Journal", journal_trades_path, class: "text-sm text-info hover:underline" %>
+  <h1 class="mt-2 text-2xl font-bold tracking-tight md:text-3xl">Record Actual Trade</h1>
+  <p class="mt-1 text-muted">A signal never creates a journal trade automatically.</p>
+</header>
+
+<% if (signal = @trade.trade_signal) %>
+  <section class="card mb-6" aria-labelledby="signal-heading">
+    <h2 id="signal-heading" class="text-lg font-semibold">From signal: <%= signal.symbol %> <%= direction_badge(signal.direction) %></h2>
+    <p class="mt-1 text-sm text-muted">Planned levels for reference only. Record your actual fill below.</p>
+    <dl class="mt-4 grid grid-cols-3 gap-3 text-sm">
+      <% [["Planned entry", signal.entry], ["Stop loss", signal.stop], ["Take profit", signal.target]].each do |label, value| %>
+        <div class="rounded-lg border border-line bg-raised p-3"><dt class="text-xs text-muted"><%= label %></dt><dd class="mt-1 font-semibold tabular-nums"><%= format_price(signal.symbol, value) %></dd></div>
+      <% end %>
+    </dl>
+  </section>
+<% end %>
+
+<section class="card motion-rise max-w-4xl" style="--delay: 80ms" aria-labelledby="record-heading">
+  <h2 id="record-heading" class="mb-1 text-lg font-semibold md:text-xl">Manual trade record</h2>
+  <p class="mb-6 text-sm text-muted">Enter what actually happened at your broker. Nothing here places a trade.</p>
+  <%= render "form", trade: @trade %>
+</section>

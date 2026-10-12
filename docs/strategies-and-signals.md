@@ -48,7 +48,7 @@ no live spread). A database unique index prevents duplicate signals.
 | active | Created; actionable until expiry |
 | expired | 30 minutes (configurable) after the confirmation candle closed |
 | invalidated | A newer candle traded through the stop, or closed beyond the entry tolerance (0.25 x ATR) |
-| completed | Reserved for the journal (M10); nothing completes signals yet |
+| completed | Reserved; nothing completes signals yet. Recording a signal in the journal does not change its status |
 
 The page countdown is only a guide; the stored status decides validity.
 

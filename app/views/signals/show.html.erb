@@ -32,6 +32,11 @@
       <ol class="list-decimal space-y-1 pl-5 text-sm text-muted"><% evidence["sizing_steps"].each do |step| %><li><%= step %></li><% end %></ol>
     <% end %>
     <p class="mt-4 text-xs text-faint">The countdown is a guide; the server status above decides validity. Gaps and slippage can exceed planned risk.</p>
+    <% if @signal.journal_trade %>
+      <%= link_to "View journal record", journal_trade_path(@signal.journal_trade), class: "button mt-4 inline-flex" %>
+    <% else %>
+      <%= link_to "Record in journal", new_journal_trade_path(signal_id: @signal.id), class: "button mt-4 inline-flex" %>
+    <% end %>
   </section>
 
   <section class="card" aria-labelledby="evidence-heading">

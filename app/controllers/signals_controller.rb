@@ -15,7 +15,7 @@ class SignalsController < ApplicationController
 
   private
     def owner_signals
-      TradeSignal.joins(strategy_version: :strategy).where(strategies: { user_id: Current.user.id })
+      TradeSignal.owned_by(Current.user)
     end
 
     # Most recent verdict per enabled pair for each running strategy.

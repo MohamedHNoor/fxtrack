@@ -48,11 +48,21 @@
   :focus-visible {
     @apply outline-3 outline-offset-3 outline-info;
   }
+
+  /* Phones: no grey tap flash and no double-tap zoom delay on controls. */
+  a, button, summary, label, select, input[type="checkbox"], input[type="radio"] {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
 }
 
 @layer components {
   .button {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-line bg-raised px-6 py-4 font-semibold text-fg transition hover:-translate-y-0.5 hover:border-info;
+    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-line bg-raised px-6 py-4 font-semibold text-fg hover:-translate-y-0.5 hover:border-info active:translate-y-0 active:scale-[0.97];
+    /* Press feedback: a quick, interruptible squeeze on transform and colour only. */
+    transition-property: translate, scale, background-color, border-color, color;
+    transition-duration: 160ms;
+    transition-timing-function: var(--ease-out-strong);
   }
 
   .button-primary {
@@ -76,50 +86,73 @@
   }
 }
 
-/* Mobile drawer: slides in from the right over a fading backdrop. */
+/* Mobile drawer: slides in from the side over a fading backdrop. Opening
+   uses an iOS-like curve; closing snaps faster because the owner is done. */
 @layer components {
   .drawer {
     @apply fixed inset-y-0 right-0 left-auto m-0 h-dvh max-h-none w-[min(88vw,360px)] max-w-none border-l border-line bg-navy text-fg shadow-2xl shadow-black/60;
     transform: translateX(100%);
-    transition: transform 280ms cubic-bezier(0.2, 0.8, 0.2, 1);
+    transition: transform 200ms var(--ease-out-strong);
   }
 
   .drawer.is-open {
     transform: translateX(0);
+    transition: transform 320ms var(--ease-drawer);
   }
 
   .drawer::backdrop {
     background: rgb(2 11 24 / 0.8);
     opacity: 0;
-    transition: opacity 280ms ease;
+    transition: opacity 200ms ease-out;
   }
 
   .drawer.is-open::backdrop {
     opacity: 1;
+    transition-duration: 320ms;
   }
 
+  /* Links follow the panel in with a short stagger and leave together. */
   .drawer-link {
     opacity: 0;
-    transform: translateX(16px);
-    transition: opacity 240ms ease var(--delay, 0ms), transform 240ms ease var(--delay, 0ms), background-color 160ms ease, color 160ms ease;
+    transform: translateX(12px);
+    transition: opacity 120ms ease-out, transform 120ms ease-out, background-color 160ms ease, color 160ms ease;
   }
 
   .drawer.is-open .drawer-link {
     opacity: 1;
     transform: translateX(0);
+    transition: opacity 220ms var(--ease-out-strong) var(--delay, 0ms), transform 220ms var(--ease-out-strong) var(--delay, 0ms),
+      background-color 160ms ease, color 160ms ease;
   }
 }
 
 /* Page motion. Hidden reveal states are added by JavaScript, so content stays
    visible when scripts are unavailable. */
+/* Page entrances are seen many times a day, so they stay short and travel little. */
 @keyframes rise {
-  from { opacity: 0; transform: translateY(24px); }
+  from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes grow {
   from { transform: scaleY(0); }
   to { transform: scaleY(1); }
+}
+
+/* Strong ease-out for interface motion: fast start, soft landing. */
+:root {
+  --ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* A just-saved figure settles into place to confirm the change. */
+@keyframes settle {
+  from { opacity: 0; transform: translateY(6px) scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
 }
 
 @keyframes draw {
@@ -129,7 +162,7 @@
 
 @layer utilities {
   .motion-rise {
-    animation: rise 700ms cubic-bezier(0.2, 0.8, 0.2, 1) var(--delay, 0ms) both;
+    animation: rise 320ms var(--ease-out-strong) var(--delay, 0ms) both;
   }
 
   .motion-candle {
@@ -143,10 +176,28 @@
     animation: draw 1600ms ease-out var(--delay, 900ms) both;
   }
 
+  .motion-settle {
+    display: inline-block;
+    animation: settle 280ms var(--ease-out-strong) both;
+  }
+
+  /* Decision field groups ease in when shown; transitions stay interruptible
+     if the owner flips the choice quickly. */
+  .motion-swap {
+    transition: opacity 200ms var(--ease-out-strong), transform 200ms var(--ease-out-strong);
+    @starting-style { opacity: 0; transform: translateY(-4px); }
+  }
+
+  /* Disclosure chevron turns as the panel opens. */
+  .disclosure > summary { list-style: none; display: flex; align-items: center; gap: 0.5rem; }
+  .disclosure > summary::-webkit-details-marker { display: none; }
+  .disclosure > summary::before { content: "▸"; color: var(--color-info); transition: rotate 160ms var(--ease-out-strong); }
+  .disclosure[open] > summary::before { rotate: 90deg; }
+
   .reveal-pending {
     opacity: 0;
-    transform: translateY(24px);
-    transition: opacity 600ms ease var(--delay, 0ms), transform 600ms cubic-bezier(0.2, 0.8, 0.2, 1) var(--delay, 0ms);
+    transform: translateY(12px);
+    transition: opacity 400ms var(--ease-out-strong) var(--delay, 0ms), transform 400ms var(--ease-out-strong) var(--delay, 0ms);
   }
 
   .reveal-pending.reveal-visible {
@@ -158,9 +209,17 @@
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
 
-  .motion-rise, .motion-candle, .motion-line { animation: none; }
+  .motion-candle, .motion-line { animation: none; }
+  /* Entrances keep a brief fade so content still arrives gently, without movement. */
+  .motion-rise { animation: fade-in 200ms ease-out var(--delay, 0ms) both; }
+  .reveal-pending { transform: none; transition: opacity 200ms ease-out; }
+  /* Gentler, not absent: confirmation and swaps keep a short fade without movement. */
+  .motion-settle { animation: fade-in 200ms ease-out both; }
+  .motion-swap { transition: opacity 150ms ease-out; @starting-style { opacity: 0; transform: none; } }
+  .disclosure > summary::before { transition: none; }
 
-  .drawer, .drawer::backdrop, .drawer-link, .reveal-pending, .button { transition: none; }
+  .drawer, .drawer.is-open, .drawer-link, .drawer.is-open .drawer-link, .button { transition: none; }
+  .drawer::backdrop, .drawer.is-open::backdrop { transition: opacity 150ms ease-out; }
 }
 
 /* App navigation opens from the left, matching the desktop sidebar. */

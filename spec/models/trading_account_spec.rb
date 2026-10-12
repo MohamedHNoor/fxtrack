@@ -14,7 +14,7 @@ RSpec.describe TradingAccount do
     entry("adjustment", 50)
     entry("adjustment", -20)
     expect(account.balance).to eq(2100)
-    expect(account.totals).to eq(deposits: 100, withdrawals: -30, adjustments: 30)
+    expect(account.totals).to eq(deposits: 100, withdrawals: -30, closed_trade_pnl: 0, adjustments: 30)
   end
 
   it "keeps entries immutable and corrects them with an exact reversal" do

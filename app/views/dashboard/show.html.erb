@@ -10,7 +10,7 @@
   </header>
 
   <section aria-label="Summary" class="mb-6 grid grid-cols-2 gap-3 xl:grid-cols-4">
-    <% [["Account balance", @account ? nzd(@account.balance) : "Not set up", @account ? "Starting capital plus recorded cash movements." : "Set up starting capital on the Account page.", "border-t-accent"],
+    <% [["Account balance", @account ? nzd(@account.balance) : "Not set up", @account ? "Starting capital, cash movements and closed-trade P&L." : "Set up starting capital on the Account page.", "border-t-accent"],
         ["Active signals", @active_signals.zero? ? "None" : @active_signals.to_s, @active_signals.zero? ? "Strategies analyse each completed H1 candle." : "Review them on the Signals page.", "border-t-positive"],
         ["Enabled pairs", "#{@pairs.size} of #{ProviderRequest::SYMBOLS.size}", "Change them in Settings.", "border-t-violet"],
         ["Owner sessions", @active_sessions.to_s, "Monitoring runs while at least one is valid.", "border-t-info"]].each_with_index do |(label, value, hint, tone), index| %>
@@ -28,6 +28,29 @@
       <%= link_to "Open charts →", markets_path, class: "text-sm text-info hover:underline" %>
     </div>
     <%= render "markets/watchlist", pairs: @pairs, snapshots: @snapshots %>
+  </section>
+
+  <section class="card mb-6" aria-labelledby="journal-heading" data-reveal-target="item">
+    <div class="mb-4 flex items-center justify-between gap-3">
+      <h2 id="journal-heading" class="text-lg font-semibold">Recent journal</h2>
+      <%= link_to "Open journal →", journal_trades_path, class: "text-sm text-info hover:underline" %>
+    </div>
+    <% if @recent_trades.empty? %>
+      <p class="text-sm text-muted">No trades recorded yet. <%= link_to "Record a trade", new_journal_trade_path, class: "text-info hover:underline" %> when you take or skip one.</p>
+    <% else %>
+      <ul class="divide-y divide-line text-sm">
+        <% @recent_trades.each do |trade| %>
+          <li class="flex flex-wrap items-center justify-between gap-3 py-3">
+            <%= link_to journal_trade_path(trade), class: "flex items-center gap-2 hover:underline" do %>
+              <span><%= trade.symbol %></span> <%= direction_badge(trade.direction) %> <%= journal_state_badge(trade) %>
+            <% end %>
+            <span class="tabular-nums <%= change_class(trade.realized_pnl_nzd) %>">
+              <%= trade.closed? ? nzd(trade.realized_pnl_nzd, signed: true) : owner_time(trade.recorded_at) %>
+            </span>
+          </li>
+        <% end %>
+      </ul>
+    <% end %>
   </section>
 
   <div class="grid gap-6 lg:grid-cols-2">

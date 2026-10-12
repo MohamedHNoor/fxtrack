@@ -16,6 +16,7 @@ Rails.application.routes.draw do
   get "dashboard", to: "dashboard#show", as: :dashboard
   resources :markets, only: %i[ index show ]
   resources :signals, only: %i[ index show ]
+  resources :journal_trades, path: "journal", only: %i[ index new create show edit update ]
   resources :strategies, only: %i[ index edit update ] do
     member do
       post :clone

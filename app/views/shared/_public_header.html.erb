@@ -1,4 +1,6 @@
 <% sections = { "Features" => "features", "How it works" => "how", "FAQ" => "faq" } %>
+<%# Public pages stay reachable while logged in (for example password reset), so offer the way back in. %>
+<% cta_label, cta_path = authenticated? ? [ "Dashboard", dashboard_path ] : [ "Login", login_path ] %>
 <header class="mx-auto flex max-w-content items-center justify-between gap-6 px-4 py-4 md:px-6 md:py-6" data-controller="nav-menu">
   <%= link_to root_path, class: "block w-[150px] shrink-0 md:w-[185px]", aria: { label: "FXTrack home" } do %>
     <%= image_tag "fxtrack-logo-dark.svg", alt: "FXTrack", width: 340, height: 110, class: "h-auto w-full" %>
@@ -11,7 +13,7 @@
   </nav>
 
   <div class="flex items-center gap-3">
-    <%= link_to "Login", login_path, class: "button button-primary px-4 py-3 md:px-6 md:py-4" %>
+    <%= link_to cta_label, cta_path, class: "button button-primary px-4 py-3 md:px-6 md:py-4" %>
     <button type="button" class="button px-3 py-3 md:hidden" aria-haspopup="dialog" aria-expanded="false" aria-controls="mobile-menu"
             data-nav-menu-target="button" data-action="nav-menu#open">
       <span class="sr-only">Open menu</span>
@@ -32,10 +34,10 @@
       <nav aria-label="Mobile" class="grid gap-1">
         <% sections.each_with_index do |(label, anchor), index| %>
           <%= link_to label, root_path(anchor: anchor), class: "drawer-link rounded-lg border-l-3 border-transparent px-4 py-4 text-lg text-muted hover:border-info hover:bg-glow hover:text-fg",
-                style: "--delay: #{120 + index * 60}ms", data: { action: "nav-menu#close" } %>
+                style: "--delay: #{60 + index * 30}ms", data: { action: "nav-menu#close" } %>
         <% end %>
       </nav>
-      <%= link_to "Login", login_path, class: "button button-primary mt-auto w-full" %>
+      <%= link_to cta_label, cta_path, class: "button button-primary mt-auto w-full" %>
     </div>
   </dialog>
 </header>

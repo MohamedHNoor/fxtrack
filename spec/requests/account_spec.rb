@@ -71,7 +71,7 @@ RSpec.describe "Account and risk" do
   it "shows the risk and account settings page and redirects the old risk path" do
     set_up
     get settings_path
-    expect(response.body).to include("Risk &amp; account settings", "Risk management", "Capital management", "Currency pair preferences", "Position calculator", "Planned risk per trade")
+    expect(response.body).to include("Risk &amp; Account Settings", "Balance from manually recorded closed trades and cash movements.", "View journal", "Risk management", "Capital management", "Currency pair preferences", "Position calculator", "Planned risk per trade")
     get "/risk"
     expect(response).to redirect_to("/settings")
   end

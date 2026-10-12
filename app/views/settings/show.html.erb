@@ -1,7 +1,7 @@
 <% content_for :title, "Settings · FXTrack" %>
 
 <header class="motion-rise mb-8">
-  <h1 class="text-2xl font-bold tracking-tight md:text-3xl">Risk &amp; account settings</h1>
+  <h1 class="text-2xl font-bold tracking-tight md:text-3xl">Risk &amp; Account Settings</h1>
   <p class="mt-1 text-muted">Manage capital, risk and your enabled currency pairs.</p>
 </header>
 
@@ -58,10 +58,11 @@
     <h2 id="capital-heading" class="text-lg font-semibold">Capital management</h2>
     <p class="mt-4 text-3xl font-bold tabular-nums"><%= @balance ? nzd(@balance) : "Not set up" %></p>
     <p class="mt-2 text-sm text-muted">
-      <%= @account ? "Balance from starting capital and recorded cash movements. Closed trades join with the journal." : "Set up starting capital on the ledger page." %>
+      <%= @account ? "Balance from manually recorded closed trades and cash movements." : "Set up starting capital on the ledger page." %>
     </p>
     <div class="mt-5 flex flex-wrap gap-3">
       <%= link_to @account ? "View ledger" : "Set up account", account_path, class: "button button-primary" %>
+      <%= link_to "View journal", journal_trades_path, class: "button" if @account %>
     </div>
     <dl class="mt-6 divide-y divide-line">
       <div class="flex justify-between gap-4 py-3"><dt class="text-muted">Timezone</dt><dd><%= Rails.configuration.x.owner_time_zone %></dd></div>

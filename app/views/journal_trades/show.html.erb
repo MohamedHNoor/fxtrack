@@ -1,0 +1,74 @@
+<% content_for :title, "#{@trade.symbol} journal record · FXTrack" %>
+
+<header class="motion-rise mb-6 flex flex-wrap items-end justify-between gap-4">
+  <div>
+    <%= link_to "← Journal", journal_trades_path, class: "text-sm text-info hover:underline" %>
+    <h1 class="mt-2 flex flex-wrap items-center gap-3 text-2xl font-bold tracking-tight md:text-3xl">
+      <%= @trade.symbol %> <%= direction_badge(@trade.direction) %> <%= journal_state_badge(@trade) %>
+    </h1>
+    <p class="mt-1 text-muted"><%= @trade.skipped? ? "Skipped" : "Opened" %> <%= owner_time(@trade.recorded_at) %></p>
+  </div>
+  <%= link_to @trade.closed? ? "Correct" : "Edit", edit_journal_trade_path(@trade), class: "button" %>
+</header>
+
+<div class="grid gap-6 lg:grid-cols-2">
+  <% if @trade.taken? %>
+    <section class="card" aria-labelledby="fill-heading">
+      <h2 id="fill-heading" class="mb-4 text-lg font-semibold">Fills</h2>
+      <dl class="divide-y divide-line text-sm">
+        <% [["Opened", owner_time(@trade.opened_at)], ["Entry price", format_price(@trade.symbol, @trade.entry_price)],
+            ["Units", "#{number_with_delimiter(plain_decimal(@trade.units))} (#{number_with_precision(@trade.lots, precision: 2)} lots)"],
+            ["Closed", @trade.closed? ? owner_time(@trade.closed_at) : "Still open"],
+            ["Exit price", @trade.closed? ? format_price(@trade.symbol, @trade.exit_price) : "None"],
+            ["Closing rate", @trade.closed? ? "#{plain_decimal(@trade.closing_rate)} #{@trade.symbol.split("/").last} per NZD" : "None"],
+            ["Fees", nzd(@trade.fees_nzd)], ["Financing", nzd(@trade.financing_nzd, signed: true)]].each do |label, value| %>
+          <div class="flex justify-between gap-4 py-2"><dt class="text-muted"><%= label %></dt><dd class="text-right tabular-nums"><%= value %></dd></div>
+        <% end %>
+      </dl>
+    </section>
+
+    <section class="card" aria-labelledby="pnl-heading">
+      <h2 id="pnl-heading" class="mb-4 text-lg font-semibold">Realized P&amp;L</h2>
+      <% if @trade.closed? %>
+        <p class="text-3xl font-bold tabular-nums <%= change_class(@trade.realized_pnl_nzd) %> <%= "motion-settle" if notice %>"><%= nzd(@trade.realized_pnl_nzd, signed: true) %></p>
+        <p class="mt-1 text-sm text-muted">Source: <strong><%= pnl_source_label(@trade) %></strong></p>
+        <dl class="mt-4 divide-y divide-line text-sm">
+          <div class="flex justify-between gap-4 py-2"><dt class="text-muted">Calculated</dt><dd class="text-right tabular-nums"><%= nzd(@trade.calculated_pnl_nzd, signed: true) %></dd></div>
+          <% if @trade.override_pnl_nzd %>
+            <div class="flex justify-between gap-4 py-2"><dt class="text-muted">Manual override</dt><dd class="text-right tabular-nums"><%= nzd(@trade.override_pnl_nzd, signed: true) %></dd></div>
+            <div class="flex justify-between gap-4 py-2"><dt class="text-muted">Override reason</dt><dd class="text-right"><%= @trade.override_reason %></dd></div>
+          <% end %>
+        </dl>
+        <p class="mt-4 text-xs text-faint">Calculated = price move × units ÷ closing rate, minus fees, plus financing. Posted to the account ledger on <%= owner_time(@trade.closed_at) %>.</p>
+      <% else %>
+        <p class="text-sm text-muted">Not realized while the trade is open. Open trades are not included in the account balance.</p>
+      <% end %>
+    </section>
+  <% end %>
+
+  <section class="card" aria-labelledby="context-heading">
+    <h2 id="context-heading" class="mb-4 text-lg font-semibold">Context</h2>
+    <dl class="divide-y divide-line text-sm">
+      <div class="flex justify-between gap-4 py-2"><dt class="text-muted">Signal</dt>
+        <dd class="text-right"><%= @trade.trade_signal ? link_to("#{@trade.trade_signal.strategy_version.label} signal", signal_path(@trade.trade_signal), class: "text-info hover:underline") : "Manual (no signal)" %></dd></div>
+      <div class="py-2"><dt class="text-muted">Notes</dt><dd class="mt-1 whitespace-pre-line"><%= @trade.notes.presence || "None" %></dd></div>
+    </dl>
+  </section>
+
+  <section class="card lg:col-span-2" aria-labelledby="history-heading">
+    <h2 id="history-heading" class="mb-4 text-lg font-semibold">Audit history</h2>
+    <ol class="space-y-4 text-sm">
+      <% @trade.audit_events.includes(:user).reverse_each do |event| %>
+        <li class="rounded-lg border border-line p-3">
+          <p><strong><%= event.action.capitalize %></strong> · <%= owner_time(event.created_at) %> · <%= event.user.email_address %></p>
+          <% if event.reason %><p class="mt-1 text-muted">Reason: <%= event.reason %></p><% end %>
+          <ul class="mt-2 space-y-1 text-muted">
+            <% event.changes_made.each do |field, (before, after)| %>
+              <li><%= JournalTrade.human_attribute_name(field) %>: <%= audit_value(field, before) %> → <%= audit_value(field, after) %></li>
+            <% end %>
+          </ul>
+        </li>
+      <% end %>
+    </ol>
+  </section>
+</div>

@@ -1,0 +1,12 @@
+<% content_for :title, "Edit #{@trade.symbol} record · FXTrack" %>
+
+<header class="motion-rise mb-8">
+  <%= link_to "← #{@trade.symbol} record", journal_trade_path(@trade), class: "text-sm text-info hover:underline" %>
+  <h1 class="mt-2 flex flex-wrap items-center gap-3 text-2xl font-bold tracking-tight md:text-3xl">
+    <%= @trade.closed_at_in_database.present? ? "Correct" : "Update" %> <%= @trade.symbol %> <%= direction_badge(@trade.direction) %>
+  </h1>
+</header>
+
+<section class="card max-w-4xl">
+  <%= render "form", trade: @trade %>
+</section>
