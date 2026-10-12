@@ -24,3 +24,17 @@ Regression coverage includes stale H4, revoked sessions, concurrent withdrawals,
 simultaneous alert workers, frozen HTTP retries, provider error classifications,
 expired retry windows and maximum-length clone names. The email schema change
 adds only nullable payload/timestamp columns; no existing data is removed.
+
+## Migration ordering repair
+
+F-06: Renamed the retry migration from version `20261012020000` to
+`20261012140000`, after `20261012130000` creates the delivery table. Updated
+the schema version. Local development and test databases already had the
+columns, so only their `schema_migrations` version records were reconciled,
+after checking the columns exist and the new version was not already recorded.
+No application data or columns were dropped or recreated.
+
+Fresh replay in a uniquely named disposable PostgreSQL database passed all
+17 migrations and confirmed both retry columns. That disposable database was
+removed afterward. Another database that applied the old version needs the same
+metadata reconciliation before running the renamed migration.
