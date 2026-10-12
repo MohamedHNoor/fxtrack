@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_12_140000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_12_150200) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -23,11 +23,26 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_12_140000) do
     t.bigint "reverses_entry_id"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.bigint "journal_trade_id"
+    t.index ["journal_trade_id"], name: "index_account_ledger_entries_on_journal_trade_id"
     t.index ["reverses_entry_id"], name: "index_account_ledger_entries_on_reverses_entry_id", unique: true
     t.index ["trading_account_id"], name: "index_account_ledger_entries_on_trading_account_id"
     t.check_constraint "(kind::text = 'reversal'::text) = (reverses_entry_id IS NOT NULL)", name: "ledger_reversal_link"
-    t.check_constraint "kind::text = 'deposit'::text AND amount > 0::numeric OR kind::text = 'withdrawal'::text AND amount < 0::numeric OR (kind::text = ANY (ARRAY['adjustment'::character varying, 'reversal'::character varying]::text[])) AND amount <> 0::numeric", name: "ledger_amount_sign"
-    t.check_constraint "kind::text = ANY (ARRAY['deposit'::character varying, 'withdrawal'::character varying, 'adjustment'::character varying, 'reversal'::character varying]::text[])", name: "ledger_kind"
+    t.check_constraint "kind::text = 'deposit'::text AND amount > 0::numeric OR kind::text = 'withdrawal'::text AND amount < 0::numeric OR (kind::text = ANY (ARRAY['adjustment'::character varying, 'reversal'::character varying, 'trade'::character varying]::text[])) AND amount <> 0::numeric", name: "ledger_amount_sign"
+    t.check_constraint "kind::text = 'trade'::text AND journal_trade_id IS NOT NULL OR (kind::text = ANY (ARRAY['deposit'::character varying, 'withdrawal'::character varying, 'adjustment'::character varying]::text[])) AND journal_trade_id IS NULL OR kind::text = 'reversal'::text", name: "ledger_trade_link"
+    t.check_constraint "kind::text = ANY (ARRAY['deposit'::character varying, 'withdrawal'::character varying, 'adjustment'::character varying, 'reversal'::character varying, 'trade'::character varying]::text[])", name: "ledger_kind"
+  end
+
+  create_table "audit_events", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.string "auditable_type", null: false
+    t.bigint "auditable_id", null: false
+    t.string "action", null: false
+    t.jsonb "changes_made", default: {}, null: false
+    t.string "reason", limit: 500
+    t.datetime "created_at", null: false
+    t.index ["auditable_type", "auditable_id"], name: "index_audit_events_on_auditable"
+    t.index ["user_id"], name: "index_audit_events_on_user_id"
   end
 
   create_table "candle_fingerprints", force: :cascade do |t|
@@ -92,6 +107,37 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_12_140000) do
     t.check_constraint "closure_count >= 0", name: "quality_closure_nonnegative"
     t.check_constraint "invalid_count >= 0", name: "quality_invalid_nonnegative"
     t.check_constraint "reproduced_count >= 0 AND mismatch_count >= 0", name: "quality_reproduction_nonnegative"
+  end
+
+  create_table "journal_trades", force: :cascade do |t|
+    t.bigint "trading_account_id", null: false
+    t.bigint "trade_signal_id"
+    t.string "symbol", null: false
+    t.string "direction", null: false
+    t.string "status", null: false
+    t.datetime "opened_at"
+    t.datetime "skipped_at"
+    t.decimal "entry_price", precision: 16, scale: 8
+    t.decimal "units", precision: 14, scale: 2
+    t.decimal "exit_price", precision: 16, scale: 8
+    t.datetime "closed_at"
+    t.decimal "closing_rate", precision: 16, scale: 8
+    t.decimal "fees_nzd", precision: 14, scale: 2, default: "0.0", null: false
+    t.decimal "financing_nzd", precision: 14, scale: 2, default: "0.0", null: false
+    t.decimal "calculated_pnl_nzd", precision: 14, scale: 2
+    t.decimal "override_pnl_nzd", precision: 14, scale: 2
+    t.string "override_reason", limit: 500
+    t.text "notes"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["trade_signal_id"], name: "index_journal_trades_on_trade_signal_id", unique: true
+    t.index ["trading_account_id"], name: "index_journal_trades_on_trading_account_id"
+    t.check_constraint "closed_at IS NULL AND exit_price IS NULL AND closing_rate IS NULL AND calculated_pnl_nzd IS NULL OR closed_at IS NOT NULL AND exit_price > 0::numeric AND closing_rate > 0::numeric AND calculated_pnl_nzd IS NOT NULL AND closed_at >= opened_at", name: "journal_closing_fields"
+    t.check_constraint "direction::text = ANY (ARRAY['buy'::character varying, 'sell'::character varying]::text[])", name: "journal_direction"
+    t.check_constraint "fees_nzd >= 0::numeric", name: "journal_fees_nonnegative"
+    t.check_constraint "override_pnl_nzd IS NULL AND override_reason IS NULL OR override_pnl_nzd IS NOT NULL AND override_reason IS NOT NULL AND closed_at IS NOT NULL", name: "journal_override"
+    t.check_constraint "status::text = 'taken'::text AND opened_at IS NOT NULL AND entry_price > 0::numeric AND units > 0::numeric AND skipped_at IS NULL OR status::text = 'skipped'::text AND skipped_at IS NOT NULL AND opened_at IS NULL AND entry_price IS NULL AND units IS NULL AND closed_at IS NULL AND fees_nzd = 0::numeric AND financing_nzd = 0::numeric", name: "journal_status_fields"
+    t.check_constraint "status::text = ANY (ARRAY['taken'::character varying, 'skipped'::character varying]::text[])", name: "journal_status"
   end
 
   create_table "notification_preferences", force: :cascade do |t|
@@ -268,10 +314,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_12_140000) do
   end
 
   add_foreign_key "account_ledger_entries", "account_ledger_entries", column: "reverses_entry_id"
+  add_foreign_key "account_ledger_entries", "journal_trades"
   add_foreign_key "account_ledger_entries", "trading_accounts"
+  add_foreign_key "audit_events", "users"
   add_foreign_key "candle_fingerprints", "provider_requests"
   add_foreign_key "candles", "provider_requests"
   add_foreign_key "data_quality_metrics", "provider_requests"
+  add_foreign_key "journal_trades", "trade_signals"
+  add_foreign_key "journal_trades", "trading_accounts"
   add_foreign_key "notification_preferences", "users"
   add_foreign_key "risk_profiles", "users"
   add_foreign_key "sessions", "users"

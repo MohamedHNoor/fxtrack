@@ -29,3 +29,15 @@
 
 en:
   hello: "Hello world"
+  activerecord:
+    attributes:
+      journal_trade:
+        symbol: "Pair"
+        entry_price: "Entry price"
+        exit_price: "Exit price"
+        closing_rate: "Closing rate"
+        fees_nzd: "Fees (NZD)"
+        financing_nzd: "Financing (NZD)"
+        override_pnl_nzd: "Manual P&L override"
+        override_reason: "Override reason"
+        trade_signal: "Signal"

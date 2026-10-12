@@ -1,14 +1,19 @@
 <% content_for :head do %><meta name="robots" content="noindex"><% end %>
 <% content_for :app_body do %>
-  <% nav = [["Dashboard", dashboard_path], ["Signals", signals_path], ["Markets", markets_path], ["Strategies", strategies_path], ["Account", account_path], ["Alerts", alerts_path], ["Settings", settings_path]] %>
+  <%# Icons follow prototypes/; they are decorative, so screen readers hear only the label. %>
+  <% nav = [["Dashboard", dashboard_path, "◇"], ["Signals", signals_path, "◉"], ["Journal", journal_trades_path, "▤"], ["Markets", markets_path, "⌁"],
+            ["Strategies", strategies_path, "⚙"], ["Account", account_path, "◈"], ["Alerts", alerts_path, "♧"], ["Settings", settings_path, "⚙"]] %>
+  <% current = ->(path) { current_page?(path) || request.path.start_with?("#{path}/") ? "page" : nil } %>
   <aside class="fixed inset-y-0 left-0 z-20 hidden w-[220px] flex-col border-r border-line bg-navy px-4 py-8 shadow-lg shadow-black/40 md:flex">
     <%= link_to dashboard_path, class: "block w-[150px]", aria: { label: "FXTrack dashboard" } do %>
       <%= image_tag "fxtrack-logo-dark.svg", alt: "FXTrack", width: 340, height: 110, class: "h-auto w-full" %>
     <% end %>
     <nav aria-label="Main" class="mt-12 grid gap-2">
-      <% nav.each do |label, path| %>
-        <%= link_to label, path, aria: { current: (current_page?(path) || request.path.start_with?("#{path}/")) ? "page" : nil },
-              class: "rounded-lg border-l-3 border-transparent px-4 py-3 text-muted hover:border-info hover:bg-glow hover:text-fg aria-[current=page]:border-info aria-[current=page]:bg-glow aria-[current=page]:text-fg" %>
+      <% nav.each do |label, path, icon| %>
+        <%= link_to path, aria: { current: current.(path) },
+              class: "flex items-center gap-3 rounded-lg border-l-3 border-transparent px-4 py-3 text-muted hover:border-info hover:bg-glow hover:text-fg aria-[current=page]:border-info aria-[current=page]:bg-glow aria-[current=page]:text-fg" do %>
+          <span aria-hidden="true" class="w-4 text-center"><%= icon %></span><%= label %>
+        <% end %>
       <% end %>
     </nav>
     <div class="mt-auto grid gap-3 border-t border-line pt-6 text-sm">
@@ -39,9 +44,11 @@
           </button>
         </div>
         <nav aria-label="Mobile" class="grid gap-1">
-          <% nav.each_with_index do |(label, path), index| %>
-            <%= link_to label, path, style: "--delay: #{120 + index * 60}ms", data: { action: "nav-menu#close" },
-                  class: "drawer-link rounded-lg border-l-3 border-transparent px-4 py-4 text-lg text-muted hover:border-info hover:bg-glow hover:text-fg" %>
+          <% nav.each_with_index do |(label, path, icon), index| %>
+            <%= link_to path, style: "--delay: #{60 + index * 30}ms", data: { action: "nav-menu#close" }, aria: { current: current.(path) },
+                  class: "drawer-link flex items-center gap-3 rounded-lg border-l-3 border-transparent px-4 py-4 text-lg text-muted hover:border-info hover:bg-glow hover:text-fg aria-[current=page]:border-info aria-[current=page]:bg-glow aria-[current=page]:text-fg" do %>
+              <span aria-hidden="true" class="w-5 text-center"><%= icon %></span><%= label %>
+            <% end %>
           <% end %>
         </nav>
         <div class="mt-auto grid gap-3 text-sm">
@@ -52,7 +59,16 @@
     </dialog>
   </header>
 
-  <main class="px-4 py-6 md:ml-[220px] md:px-10 md:py-10">
+  <nav aria-label="Quick navigation" class="fixed inset-x-0 bottom-0 z-10 grid grid-cols-4 border-t border-line bg-navy pb-[env(safe-area-inset-bottom)] md:hidden">
+    <% nav.values_at(0, 1, 2, 7).each do |label, path, icon| %>
+      <%= link_to path, aria: { current: current.(path) },
+            class: "flex flex-col items-center gap-1 px-2 py-3 text-xs text-muted hover:text-fg aria-[current=page]:text-info" do %>
+        <span aria-hidden="true" class="text-base"><%= icon %></span><%= label %>
+      <% end %>
+    <% end %>
+  </nav>
+
+  <main class="px-4 pt-6 pb-28 md:ml-[220px] md:px-10 md:py-10">
     <div class="mx-auto max-w-content">
       <% if notice %>
         <p role="status" class="mb-6 rounded-lg border border-positive/40 bg-positive-bg/40 px-4 py-3 text-sm"><%= notice %></p>

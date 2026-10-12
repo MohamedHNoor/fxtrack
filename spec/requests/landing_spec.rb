@@ -35,4 +35,29 @@ RSpec.describe "Landing page" do
     expect(response).to have_http_status(:ok)
     expect(response.body).to include('name="robots" content="noindex"')
   end
+
+  context "when the owner is logged in" do
+    let!(:owner) { User.create!(email_address: "owner@example.com", password: "correct horse battery") }
+
+    before { post login_path, params: { email_address: owner.email_address, password: "correct horse battery" } }
+
+    it "sends the owner from the landing page to the dashboard" do
+      get root_path
+      expect(response).to redirect_to(dashboard_path)
+      get login_path
+      expect(response).to redirect_to(dashboard_path)
+    end
+
+    it "offers the dashboard instead of login on public pages" do
+      get new_password_path
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include(%(href="#{dashboard_path}">Dashboard</a>))
+      expect(response.body).not_to include(%(href="#{login_path}">Login</a>))
+    end
+  end
+
+  it "shows Login to logged-out visitors" do
+    get new_password_path
+    expect(response.body).to include(%(href="#{login_path}">Login</a>))
+  end
 end

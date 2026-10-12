@@ -1,9 +1,12 @@
-# Immutable cash movements and corrections. Mistakes are fixed by recording a
-# reversal of the original entry, never by editing or deleting it.
+# Immutable cash movements, realized trade P&L and corrections. Mistakes are
+# fixed by recording a reversal of the original entry, never by editing or
+# deleting it. Trade postings belong to a journal trade and are corrected only
+# through the journal.
 class AccountLedgerEntry < ApplicationRecord
-  KINDS = %w[deposit withdrawal adjustment reversal].freeze
+  KINDS = %w[deposit withdrawal adjustment reversal trade].freeze
 
   belongs_to :trading_account
+  belongs_to :journal_trade, optional: true
   belongs_to :reverses_entry, class_name: "AccountLedgerEntry", optional: true
   has_one :reversal, class_name: "AccountLedgerEntry", foreign_key: :reverses_entry_id, inverse_of: :reverses_entry
 
@@ -16,6 +19,8 @@ class AccountLedgerEntry < ApplicationRecord
   validates :reverses_entry, presence: true, if: -> { kind == "reversal" }
   validates :reverses_entry_id, absence: true, unless: -> { kind == "reversal" }
   validates :reverses_entry_id, uniqueness: true, allow_nil: true
+  validates :journal_trade, presence: true, if: -> { kind == "trade" }
+  validates :journal_trade_id, absence: true, if: -> { %w[deposit withdrawal adjustment].include?(kind) }
   validate :reversal_matches_original, if: -> { kind == "reversal" && reverses_entry }
   validate :withdrawal_within_balance, on: :create, if: -> { kind == "withdrawal" }
   before_validation :lock_account_for_creation, on: :create
@@ -26,13 +31,18 @@ class AccountLedgerEntry < ApplicationRecord
     persisted? || super
   end
 
+  def trade_pnl?
+    journal_trade_id.present?
+  end
+
+  # Whether the owner can reverse this entry from the account page.
   def reversible?
-    kind != "reversal" && reversal.nil?
+    kind != "reversal" && !trade_pnl? && reversal.nil?
   end
 
   def reverse!(notes: nil, at: Time.current)
     trading_account.ledger_entries.create!(kind: "reversal", amount: -amount, reverses_entry: self, effective_at: at,
-      notes: notes.presence || "Reverses #{kind} of #{created_at.to_date}")
+      journal_trade_id: journal_trade_id, notes: notes.presence || "Reverses #{kind} of #{created_at.to_date}")
   end
 
   private
@@ -46,6 +56,7 @@ class AccountLedgerEntry < ApplicationRecord
       errors.add(:reverses_entry, "is already a reversal") if reverses_entry.kind == "reversal"
       errors.add(:reverses_entry, "belongs to another account") if reverses_entry.trading_account_id != trading_account_id
       errors.add(:amount, "must exactly offset the original entry") unless amount == -reverses_entry.amount
+      errors.add(:journal_trade, "must match the original entry") unless journal_trade_id == reverses_entry.journal_trade_id
     end
 
     def withdrawal_within_balance

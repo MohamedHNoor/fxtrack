@@ -3,7 +3,7 @@
 <header class="motion-rise mb-8">
   <%= link_to "← Settings", settings_path, class: "text-sm text-info hover:underline" %>
   <h1 class="mt-2 text-2xl font-bold tracking-tight md:text-3xl">Account ledger</h1>
-  <p class="mt-1 text-muted">Capital and cash movements in NZD. Entries are permanent; corrections use reversals.</p>
+  <p class="mt-1 text-muted">Capital, cash movements and closed-trade P&amp;L in NZD. Entries are permanent; corrections use reversals.</p>
 </header>
 
 <% if alert %><p role="alert" class="mb-6 rounded-lg border border-negative/50 bg-negative-bg/40 px-4 py-3 text-sm"><%= alert %></p><% end %>
@@ -33,8 +33,8 @@
       <p class="mt-2 text-3xl font-bold tabular-nums"><%= nzd(@account.balance) %></p>
       <dl class="mt-6 divide-y divide-line">
         <% [["Starting capital", nzd(@account.starting_capital)], ["Deposits", nzd(totals[:deposits])], ["Withdrawals", nzd(totals[:withdrawals])],
-            ["Adjustments and reversals", nzd(totals[:adjustments], signed: true)], ["Closed trade P&L", "Arrives with the journal"],
-            ["Unrealized P&L", "Not included"]].each do |label, value| %>
+            ["Adjustments and reversals", nzd(totals[:adjustments], signed: true)], ["Closed trade P&L", nzd(totals[:closed_trade_pnl], signed: true)],
+            ["Unrealized P&L", "Not included (open trades)"]].each do |label, value| %>
           <div class="flex justify-between gap-4 py-3 text-sm"><dt class="text-muted"><%= label %></dt><dd class="text-right tabular-nums"><%= value %></dd></div>
         <% end %>
       </dl>
@@ -75,7 +75,7 @@
 
   <section class="card mt-6" aria-labelledby="ledger-heading">
     <h2 id="ledger-heading" class="mb-4 text-lg font-semibold">Ledger</h2>
-    <% entries = @account.ledger_entries.includes(:reversal).reverse %>
+    <% entries = @account.ledger_entries.includes(:reversal, :journal_trade).reverse %>
     <% if entries.empty? %>
       <p class="text-sm text-muted">No movements recorded since the account started on <%= owner_time(@account.started_at) %>.</p>
     <% else %>
@@ -88,7 +88,13 @@
             <% entries.each do |entry| %>
               <tr class="<%= "text-faint" if entry.reversal %>">
                 <td class="px-3 py-3 whitespace-nowrap"><%= owner_time(entry.effective_at) %></td>
-                <td class="px-3 py-3"><%= entry.kind.capitalize %><%= " (reversed)" if entry.reversal %></td>
+                <td class="px-3 py-3">
+                  <% if entry.trade_pnl? %>
+                    <%= link_to entry.kind == "reversal" ? "Trade P&L correction" : "Trade P&L", journal_trade_path(entry.journal_trade), class: "text-info hover:underline" %>
+                  <% else %>
+                    <%= entry.kind.capitalize %>
+                  <% end %><%= " (reversed)" if entry.reversal %>
+                </td>
                 <td class="px-3 py-3 text-right tabular-nums <%= entry.amount.positive? ? "text-positive" : "text-negative" %>"><%= nzd(entry.amount, signed: true) %></td>
                 <td class="px-3 py-3 text-muted"><%= entry.notes %></td>
                 <td class="px-3 py-3 text-right">

@@ -7,6 +7,7 @@ class TradeSignal < ApplicationRecord
   belongs_to :strategy_version
   belongs_to :strategy_run
   has_many :signal_deliveries, dependent: :restrict_with_exception
+  has_one :journal_trade, dependent: :restrict_with_exception
 
   after_create_commit { SignalNotifier.notify(self, "new_signal") }
   after_update_commit { SignalNotifier.notify(self, status) if saved_change_to_status? && %w[expired invalidated].include?(status) }
@@ -16,6 +17,7 @@ class TradeSignal < ApplicationRecord
   validates :status, inclusion: { in: STATUSES }
   validates :entry, :stop, :target, numericality: { greater_than: 0 }
 
+  scope :owned_by, ->(user) { joins(strategy_version: :strategy).where(strategies: { user_id: user.id }) }
   scope :active, -> { where(status: "active") }
   scope :recent, -> { order(generated_at: :desc) }
 

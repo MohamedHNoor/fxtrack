@@ -22,7 +22,13 @@ export default class extends Controller {
     this.buttonTarget.setAttribute("aria-expanded", "false")
     this.dialogTarget.classList.remove("is-open")
     if (this.reducedMotion) return this.finishClose()
-    this.dialogTarget.addEventListener("transitionend", () => this.finishClose(), { once: true })
+    // Link transitions bubble up too; wait for the panel's own slide to end.
+    const onEnd = (event) => {
+      if (event.target !== this.dialogTarget || event.propertyName !== "transform") return
+      this.dialogTarget.removeEventListener("transitionend", onEnd)
+      this.finishClose()
+    }
+    this.dialogTarget.addEventListener("transitionend", onEnd)
   }
 
   // Escape fires "cancel"; animate the close instead of the instant default.

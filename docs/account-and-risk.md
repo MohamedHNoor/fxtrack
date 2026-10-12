@@ -5,9 +5,10 @@
 The owner sets up one NZD trading account with a starting capital and start
 time. Both are fixed once saved; later changes are ledger entries.
 
-Balance = starting capital + deposits - withdrawals + adjustments + reversals.
-Realized closed-trade P&L joins the ledger with the journal (M10). Unrealized
-P&L is never included.
+Balance = starting capital + deposits - withdrawals + realized closed-trade
+P&L + adjustments + reversals. Closed journal trades post their realized NZD
+P&L as `trade` entries (see `docs/journal.md`). Unrealized P&L is never
+included.
 
 | Entry | Stored amount | Notes |
 | --- | --- | --- |
@@ -15,6 +16,7 @@ P&L is never included.
 | Withdrawal | negative | Rejected if it would make the balance negative |
 | Adjustment | positive or negative | Direction chosen explicitly |
 | Reversal | exact negative of the original | One per entry; reversals cannot be reversed |
+| Trade P&L | realized NZD P&L of a closed journal trade | Posted and corrected only through the journal; no Reverse button |
 
 Entries are immutable: the model is read-only once saved, there are no update
 or delete routes, and corrections are recorded as reversals. Database check

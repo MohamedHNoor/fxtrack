@@ -1,0 +1,113 @@
+<%# locals: (trade:) %>
+<%= render "accounts/errors", record: trade %>
+<%= form_with model: trade, url: trade.new_record? ? journal_trades_path : journal_trade_path(trade), class: "grid gap-6",
+      data: { controller: ("journal-form" if trade.new_record?) } do |form| %>
+  <%= form.hidden_field :trade_signal_id if trade.new_record? && trade.trade_signal_id %>
+
+  <% if trade.new_record? %>
+    <fieldset>
+      <legend class="field-label">Decision</legend>
+      <div class="flex flex-wrap gap-6 text-sm">
+        <label class="flex items-center gap-2"><%= form.radio_button :status, "taken", class: "accent-accent", data: { action: "journal-form#toggle" } %> I took this trade</label>
+        <label class="flex items-center gap-2"><%= form.radio_button :status, "skipped", class: "accent-accent", data: { action: "journal-form#toggle" } %> I skipped it</label>
+      </div>
+    </fieldset>
+  <% end %>
+
+  <div class="grid gap-4 sm:grid-cols-2">
+    <div>
+      <%= form.label :symbol, "Pair", class: "field-label" %>
+      <%= form.select :symbol, ProviderRequest::SYMBOLS, { include_blank: "Choose a pair" }, required: true, class: "field-input" %>
+    </div>
+    <div>
+      <%= form.label :direction, class: "field-label" %>
+      <%= form.select :direction, [["Buy", "buy"], ["Sell", "sell"]], {}, class: "field-input" %>
+    </div>
+  </div>
+
+  <% unless trade.persisted? && trade.taken? %>
+    <fieldset class="motion-swap grid gap-4 rounded-lg border border-line p-4" data-journal-form-target="skipped">
+      <legend class="px-1 text-sm font-semibold">Skipped</legend>
+      <div>
+        <%= form.label :skipped_at, "Skipped at", class: "field-label" %>
+        <%= form.datetime_local_field :skipped_at, value: owner_local_value(trade.skipped_at), class: "field-input" %>
+      </div>
+    </fieldset>
+  <% end %>
+
+  <% unless trade.persisted? && trade.skipped? %>
+    <div class="motion-swap grid gap-6" data-journal-form-target="taken">
+    <fieldset class="grid gap-4 rounded-lg border border-line p-4 sm:grid-cols-3">
+      <legend class="px-1 text-sm font-semibold">Actual fill</legend>
+      <div>
+        <%= form.label :opened_at, "Opened at", class: "field-label" %>
+        <%= form.datetime_local_field :opened_at, value: owner_local_value(trade.opened_at), class: "field-input" %>
+      </div>
+      <div>
+        <%= form.label :entry_price, "Entry price", class: "field-label" %>
+        <%= form.number_field :entry_price, value: plain_decimal(trade.entry_price), step: "any", min: 0, class: "field-input" %>
+      </div>
+      <div>
+        <%= form.label :units, "Units (base currency)", class: "field-label" %>
+        <%= form.number_field :units, value: plain_decimal(trade.units), step: "any", min: 0, class: "field-input", aria: { describedby: "units-hint" } %>
+        <p id="units-hint" class="mt-1 text-xs text-faint">100,000 units is one standard lot.</p>
+      </div>
+    </fieldset>
+
+    <fieldset class="grid gap-4 rounded-lg border border-line p-4 sm:grid-cols-3">
+      <legend class="px-1 text-sm font-semibold">Close (leave blank while open)</legend>
+      <div>
+        <%= form.label :closed_at, "Closed at", class: "field-label" %>
+        <%= form.datetime_local_field :closed_at, value: owner_local_value(trade.closed_at), class: "field-input" %>
+      </div>
+      <div>
+        <%= form.label :exit_price, "Exit price", class: "field-label" %>
+        <%= form.number_field :exit_price, value: plain_decimal(trade.exit_price), step: "any", min: 0, class: "field-input" %>
+      </div>
+      <div>
+        <%= form.label :closing_rate, "Closing rate (quote per 1 NZD)", class: "field-label" %>
+        <%= form.number_field :closing_rate, value: plain_decimal(trade.closing_rate), step: "any", min: 0, class: "field-input", aria: { describedby: "rate-hint" } %>
+        <p id="rate-hint" class="mt-1 text-xs text-faint">For example NZD/USD 0.5800 or NZD/JPY 88.50.</p>
+      </div>
+      <div>
+        <%= form.label :fees_nzd, "Fees (NZD)", class: "field-label" %>
+        <%= form.number_field :fees_nzd, value: money_value(trade.fees_nzd), step: "0.01", min: 0, class: "field-input", aria: { describedby: "fees-hint" } %>
+        <p id="fees-hint" class="mt-1 text-xs text-faint">Commissions as a positive cost.</p>
+      </div>
+      <div>
+        <%= form.label :financing_nzd, "Financing (NZD)", class: "field-label" %>
+        <%= form.number_field :financing_nzd, value: money_value(trade.financing_nzd), step: "0.01", class: "field-input", aria: { describedby: "financing-hint" } %>
+        <p id="financing-hint" class="mt-1 text-xs text-faint">Positive for a credit, negative for a charge.</p>
+      </div>
+    </fieldset>
+
+    <fieldset class="grid gap-4 rounded-lg border border-line p-4 sm:grid-cols-2">
+      <legend class="px-1 text-sm font-semibold">Manual P&amp;L override (optional)</legend>
+      <p class="text-xs text-faint sm:col-span-2">Only when the broker's realized NZD amount differs from the calculation. The calculated amount stays visible.</p>
+      <div>
+        <%= form.label :override_pnl_nzd, "Realized P&L (NZD)", class: "field-label" %>
+        <%= form.number_field :override_pnl_nzd, value: money_value(trade.override_pnl_nzd), step: "0.01", class: "field-input" %>
+      </div>
+      <div>
+        <%= form.label :override_reason, "Override reason", class: "field-label" %>
+        <%= form.text_field :override_reason, maxlength: 500, class: "field-input" %>
+      </div>
+    </fieldset>
+    </div>
+  <% end %>
+
+  <div>
+    <%= form.label :notes, class: "field-label" %>
+    <%= form.text_area :notes, maxlength: 1000, rows: 3, class: "field-input" %>
+  </div>
+
+  <% if trade.persisted? && trade.closed_at_in_database.present? %>
+    <div>
+      <%= label_tag :correction_reason, "Correction reason", class: "field-label" %>
+      <%= text_field_tag :correction_reason, params[:correction_reason], maxlength: 500, required: true, class: "field-input", aria: { describedby: "correction-hint" } %>
+      <p id="correction-hint" class="mt-1 text-xs text-faint">This trade is closed. Changes are recorded in its audit history and its ledger P&amp;L is reposted.</p>
+    </div>
+  <% end %>
+
+  <%= form.submit trade.new_record? ? "Record" : "Save changes", class: "button button-primary cursor-pointer justify-self-start" %>
+<% end %>
