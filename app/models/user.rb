@@ -13,6 +13,10 @@ class User < ApplicationRecord
   validates :password, length: { minimum: 12, maximum: 72 }, allow_nil: true
   validate :sole_owner, on: :create
 
+  def monitoring_active?(now = Time.current)
+    Rails.configuration.x.unattended_monitoring || sessions.active(now).exists?
+  end
+
   private
     def sole_owner
       errors.add(:base, "FXTrack already has an owner") if User.exists?

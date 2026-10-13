@@ -20,6 +20,18 @@ RSpec.describe "Markets" do
     expect(response).to redirect_to(login_path)
   end
 
+  it "keeps private pages protected and explains unattended monitoring" do
+    original = Rails.configuration.x.unattended_monitoring
+    Rails.configuration.x.unattended_monitoring = true
+    get dashboard_path
+    expect(response).to redirect_to(login_path)
+    log_in
+    get dashboard_path
+    expect(response.body).to include("Unattended monitoring enabled", "Monitoring continues after logout.")
+  ensure
+    Rails.configuration.x.unattended_monitoring = original
+  end
+
   it "lists enabled pairs with stored prices and empty states" do
     log_in
     get markets_path

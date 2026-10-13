@@ -35,7 +35,7 @@ A signal event creates one `signal_deliveries` row (unique per signal, channel
 and event) and queues `SignalAlertJob`. At dispatch the job rechecks:
 
 1. email alerts and that event are still enabled;
-2. a valid owner session exists;
+2. a valid owner session exists or `UNATTENDED_MONITORING=true` is explicitly configured;
 3. the pair is still enabled;
 4. for new-signal alerts, the signal is still active and unexpired.
 

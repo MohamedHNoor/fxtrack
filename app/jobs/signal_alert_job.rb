@@ -1,7 +1,7 @@
 require "net/smtp"
 
 # Sends one alert after final eligibility checks at dispatch time (project
-# plan: pair, session and signal state are rechecked before sending).
+# pair, monitoring eligibility and signal state are rechecked before sending).
 class SignalAlertJob < ApplicationJob
   queue_as :default
   TRANSIENT = [ ResendSignalSender::TransientError, Net::OpenTimeout, Net::ReadTimeout, Net::WriteTimeout, Net::SMTPServerBusy, Errno::ECONNREFUSED, Errno::ECONNRESET, SocketError, EOFError ].freeze
@@ -58,7 +58,7 @@ class SignalAlertJob < ApplicationJob
       signal = delivery.trade_signal
       owner = signal.strategy_version.strategy.user
       return "Email alerts are turned off" unless NotificationPreference.for(owner).email_for?(delivery.event)
-      return "No valid owner session" unless Session.active.exists?
+      return "No valid owner session" unless owner.monitoring_active?
       return "Pair disabled" unless CurrencyPair.enabled.exists?(symbol: signal.symbol)
       "Signal is no longer active" if delivery.event == "new_signal" && !signal.actionable?
     end

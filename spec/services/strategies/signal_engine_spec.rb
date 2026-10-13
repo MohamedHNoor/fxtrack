@@ -22,6 +22,24 @@ RSpec.describe Strategies::SignalEngine do
 
   def engine(at = now) = described_class.new(clock: -> { at })
 
+  context "with unattended monitoring" do
+    around do |example|
+      original = Rails.configuration.x.unattended_monitoring
+      Rails.configuration.x.unattended_monitoring = true
+      example.run
+    ensure
+      Rails.configuration.x.unattended_monitoring = original
+    end
+
+    it "creates fresh signals without a session and still skips disabled pairs" do
+      Session.delete_all
+      CurrencyPair.find_by!(symbol: "NZD/USD").update!(enabled: false)
+      expect(engine.run).to eq(runs: 1, signals: 1)
+      expect(TradeSignal.sole.symbol).to eq("EUR/USD")
+      expect(engine.run).to eq(runs: 0, signals: 0)
+    end
+  end
+
   it "creates the default strategy, records the run and a sized active signal" do
     expect(engine.run).to eq(runs: 2, signals: 1)
     signal = TradeSignal.sole

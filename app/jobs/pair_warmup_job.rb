@@ -6,7 +6,7 @@ class PairWarmupJob < ApplicationJob
   MINIMUM_CANDLES = 300
 
   def perform(symbol)
-    return unless Session.active.exists? && CurrencyPair.enabled.exists?(symbol: symbol)
+    return unless User.first&.monitoring_active? && CurrencyPair.enabled.exists?(symbol: symbol)
     ProviderRequest::INTERVALS.each do |interval|
       next if Candle.where(symbol: symbol, interval: interval).count >= MINIMUM_CANDLES
       TwelveData::Probe.new.run(symbol: symbol, interval: interval, endpoint: "time_series_history")

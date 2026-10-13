@@ -49,3 +49,12 @@
 # Ignore Docker-related files
 /.dockerignore
 /Dockerfile*
+
+# Local agent context and browser artifacts are not application runtime files.
+/.agents/
+/.claude/
+/.codex/
+/blueprint/
+/CLAUDE.md
+/.playwright-mcp/
+/.aws/

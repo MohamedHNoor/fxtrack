@@ -23,6 +23,28 @@ RSpec.describe SignalAlertJob do
       evidence: { "reasons" => [ "H4 and H1 trends are bullish" ] }, generated_at: Time.current, expires_at: expires_at)
   end
 
+  context "with unattended monitoring" do
+    around do |example|
+      original = Rails.configuration.x.unattended_monitoring
+      Rails.configuration.x.unattended_monitoring = true
+      example.run
+    ensure
+      Rails.configuration.x.unattended_monitoring = original
+    end
+
+    it "sends without a session but still respects notification preferences" do
+      Session.delete_all
+      signal = create_signal
+      perform_enqueued_jobs
+      expect(signal.signal_deliveries.sole.status).to eq("sent")
+      later = create_signal(symbol: "NZD/USD")
+      preference.update!(email_enabled: false)
+      perform_enqueued_jobs
+      expect(later.signal_deliveries.sole.status).to eq("suppressed")
+      expect(ActionMailer::Base.deliveries.size).to eq(1)
+    end
+  end
+
   it "queues one alert per new signal and emails the plan" do
     signal = nil
     expect { signal = create_signal }.to have_enqueued_job(described_class)

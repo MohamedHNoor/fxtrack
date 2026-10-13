@@ -7,6 +7,12 @@
 valid (`Session.active`). Expiry or logout of the last session pauses
 monitoring; closing the browser does not.
 
+Owner amendment, 2026-10-14: `UNATTENDED_MONITORING=true` enables collection,
+warm-up, analysis and eligible email alerts after logout or expiry. Login still
+protects private pages. `M00_DIAGNOSTICS=true` independently permits all-pair
+evidence collection without login. See `docs/railway.md` for deployment and
+evidence handoff. Both settings default to false.
+
 - Development: `bin/dev` starts `bin/rails twelve_data:watch`, which runs the
   job every minute and prints only when requests are made or the status
   changes (`collected`, `no_active_session`, `already_running`).
@@ -64,6 +70,6 @@ The owner toggles pairs in Settings (`PATCH /settings/pairs`):
   signals and its chart page stay available.
 - Enabling a pair enqueues `PairWarmupJob`, which fetches a history window for
   each interval with fewer than 300 stored candles (only while a session is
-  valid and the pair is still enabled). Signals come only from fresh candles,
+  valid or unattended monitoring is enabled, and the pair is still enabled). Signals come only from fresh candles,
   so warm-up history never produces a retroactive alert.
 - With no pairs enabled, monitoring shows as paused and no analysis runs.

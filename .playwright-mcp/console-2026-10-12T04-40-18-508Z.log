@@ -1,0 +1,4 @@
+[ 3113093ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:3001/markets/EURUSD:0
+[ 3113129ms] TypeError: Failed to fetch
+    at W (http://localhost:3001/assets/turbo.min-9fd88cd5.js:5:7238)
+    at z.perform (http://localhost:3001/assets/turbo.min-9fd88cd5.js:5:9017)
