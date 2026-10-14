@@ -213,7 +213,7 @@ Both flags default off. Email alerts also require saved notification preferences
 
 ### Deploying
 
-Railway configuration is split between [railway.web.json](railway.web.json) and [railway.worker.json](railway.worker.json). The web service prepares databases before deployment and exposes `/up`; the worker runs `bin/jobs` without a public domain.
+The intended Railway settings are documented in [railway.web.json](railway.web.json) and [railway.worker.json](railway.worker.json). Railway rejected selecting these deprecated config files, so the settings are applied directly to the services, which build with Railway's Railpack builder rather than the Dockerfile. The web service prepares databases before deployment and exposes `/up`; the worker runs `bin/jobs` without a public domain.
 
 Follow the [Railway runbook](docs/railway.md) for variables, database preparation, evidence transfer, worker startup and acceptance checks. Stop local collection before the final database snapshot and keep it stopped after handoff: separate databases cannot coordinate a shared provider quota.
 

@@ -2,14 +2,17 @@
 
 This configuration runs the web application and a separate Solid Queue worker.
 M00 remains open until its acceptance report passes. Hosting does not waive the
-live evidence gate. No Railway service has been created or deployed by this change.
+live evidence gate. See the deployment record below for the current Railway state.
 
 ## Services
 
 Use one Railway PostgreSQL service and two application services built from this
-repository's Dockerfile. Select `/railway.web.json` as the web service's config
-file and `/railway.worker.json` as the worker's config file. Keep one replica of
-each and disable sleeping for the worker. Do not enable
+repository. The checked-in `railway.web.json` and `railway.worker.json` document
+the intended settings. During deployment Railway rejected selecting these files
+as deprecated, so the start, pre-deploy, health check and replica settings were
+applied directly to each service. The live services build with Railway's
+Railpack builder rather than the Dockerfile named in those files. Keep one
+replica of each and disable sleeping for the worker. Do not enable
 `SOLID_QUEUE_IN_PUMA`, because `bin/jobs` runs the scheduler and workers separately.
 
 The web pre-deploy command is `bin/rails db:prepare`. Deploy web first so all
@@ -123,8 +126,24 @@ proves unattended collection, analysis and email dispatch with stubbed delivery.
 Temporary containers, volumes and network were removed after the check.
 
 Railway credentials, destination project, database restore and live worker
-operation are deployment steps, not claims established by local tests. No Git
-remote is configured in this checkout yet; the owner will push to GitHub.
+operation are deployment steps, not claims established by local tests. The
+repository is now available at `MohamedHNoor/fxtrack` on GitHub.
+
+## Deployment record
+
+Deployed 2026-10-13 (UTC) to the Railway project FXTrack, environment
+`production`: `Postgres`, `web` and `worker`, one replica each, built with
+Railpack from `main` at `5ad0ebb`. Web runs `bin/rails server -b 0.0.0.0` with
+the `bin/rails db:prepare` pre-deploy command and the `/up` health check. The
+worker runs `bin/jobs` with no public domain; `M00_DIAGNOSTICS` and
+`UNATTENDED_MONITORING` are set on both services.
+
+The worker started its Solid Queue supervisor, worker, dispatcher and scheduler
+at 21:41 UTC and ran `MarketDataCollectionJob` every minute without errors. The
+22:01 UTC run, the first after an H1 close, took 3.9 seconds against roughly
+0.2 seconds for idle runs, consistent with live provider requests. The owner
+then confirmed successful collection with the read-only diagnostic reports.
+This record does not establish M00 acceptance.
 
 References: [Railway Rails guide](https://docs.railway.com/guides/rails) and
 [Railway config as code](https://docs.railway.com/config-as-code/reference).

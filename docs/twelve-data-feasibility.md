@@ -1,10 +1,12 @@
 # Twelve Data feasibility evidence
 
-Status as of 2026-10-12 (Auckland): M00 remains open. All fourteen history
-windows have been measured and repeated with zero recorded fingerprint
-mismatches. Candle persistence is active under the owner's retention decision.
-The 48 cumulative live trading-hour window and live reproducibility/freshness
-evidence remain incomplete. Earlier sections below retain the chronological
+Status as of 2026-10-14 00:27 UTC: the M00 acceptance gate passes. All
+fourteen history windows have been measured and repeated with zero fingerprint
+mismatches, 48 cumulative live trading hours were collected, every pair/interval
+reproduces live closes with zero mismatches and is fresh, quota stays within
+budget and the retention decision is recorded. Live collection runs on the
+Railway worker (see Acceptance window). The final figures are in the Acceptance
+report section at the end. Earlier sections retain the chronological
 implementation evidence and superseded blockers.
 
 ## Verified documentation
@@ -45,15 +47,25 @@ and 800 per day at capture. The WebSocket figures are separate and are not
 REST capacity. This screenshot does not establish historical-storage rights,
 continuous absence of other consumers, or a completed observation window.
 
-## Pending acceptance evidence
+## Acceptance evidence status
 
-- Other consumers of the key and measured reserved headroom during the probe.
-- Applicable retention permission and duration.
-- All seven pairs at H1/H4, closed-candle reproducibility and historical depth.
-- Freshness/gaps, weekend closure evidence and quote/spread limitations.
-- Measured credits, bounded retry/timeout/429 evidence and redaction checks.
-- History windows for every pair/interval, a repeated-fetch revision check and
-  at least 48 hours of live trading-day collection (see Acceptance window).
+Resolved (details in the sections named):
+
+- Retention permission and duration: owner decision, Retention-rights review.
+- All seven pairs at H1/H4, closed-candle reproducibility, historical depth,
+  freshness and gaps: Acceptance report.
+- History windows and the repeated-fetch revision check: Acceptance report.
+- Measured credits, headroom and retry/timeout outcomes: Acceptance report.
+- Quote and spread limitations: Quote and spread measurement.
+
+Still open:
+
+- At least 48 cumulative live trading hours (46 at 2026-10-13 22:16 UTC).
+- The live weekend closure observation. It follows the window, does not block
+  progression and reopens M00 if it fails.
+- Other consumers of the key cannot be ruled out by this application. The
+  highest cumulative minute header observed was 7, equal to the local minute
+  budget, and no 429 response was recorded.
 
 ## Current local checks
 
@@ -128,6 +140,10 @@ table exists while storage rights are unresolved.
 
 ## Outstanding implementation and observation gates
 
+Superseded: the seven-day run was replaced by the Acceptance window on
+2026-10-11, and the retention question was resolved by the owner decision. The
+original text is kept as history.
+
 This is a diagnostic foundation, not a completed M00 implementation. The explicit collection task implements close-aligned due selection from observed
 closed timestamps and validates catalogue symbols separately. Cross-request
 candle reproducibility is checked through keyed fingerprints. Weekend closure
@@ -178,7 +194,8 @@ other invalid data retry after 60 seconds. A close published more than 60
 seconds late is therefore collected one candle period later (about one hour for
 H1, four for H4). H4 is not fetched every hour. Overlapping collection processes return already_running;
 a session advisory lock is released in ensure. No scheduler or background
-production worker was enabled. Stop collection by ceasing task invocations;
+production worker was enabled at the time; the Railway worker described under
+Acceptance window now runs this cycle every minute. Stop collection by ceasing task invocations;
 resume uses persisted request/evaluation evidence. Do not infer market closure
 from absent data. Collection failures remain observable and M00 cannot pass
 until the observation window is verified.
@@ -350,15 +367,20 @@ now passes on:
 A live weekend closure observation under the New York 17:00 rule continues
 after the window. It does not block progression; a failure reopens M00.
 
-Live collection runs only while the developer is working: `bin/dev` starts a
-`collect` process (`bin/rails twelve_data:watch`) that runs one collection cycle
-per minute and stops with the dev server. No cron job or background worker is
-installed. The 48 hours are therefore cumulative active collection during
-trading hours. Periods with `bin/dev` stopped are operator gaps, not provider
-gaps: on restart, collection fetches whatever is due and reproducibility
-compares overlapping candles, but candles that closed and aged out of the
-8-candle window while stopped are not observed live. Run
-`bin/rails twelve_data:watch` on its own to collect without the web server.
+Live collection ran in two phases. Until 2026-10-13 it ran only while the
+developer was working: `bin/dev` starts a `collect` process
+(`bin/rails twelve_data:watch`) that runs one collection cycle per minute and
+stops with the dev server. The local evidence was then transferred to the
+Railway production database (see `docs/railway.md`). From 2026-10-13 21:41 UTC
+the Railway worker runs `MarketDataCollectionJob` every minute through Solid
+Queue with `M00_DIAGNOSTICS=true`, independent of any owner session. Local
+collection stays stopped so the two databases do not share the provider quota.
+
+The 48 hours are cumulative collection during trading hours. Periods without a
+running collector are operator gaps, not provider gaps: on restart, collection
+fetches whatever is due and reproducibility compares overlapping candles, but
+candles that closed and aged out of the 8-candle window while stopped are not
+observed live.
 
 ## Retention-rights review
 
@@ -425,3 +447,116 @@ valid or closed quality result and at least one trading candle since
 Rejected history responses remain included in mismatch totals. The live
 freshness check requires every pair/interval to cover its latest expected
 trading close, with no newer failed request.
+
+## Acceptance report
+
+Final figures from the Railway production database at 2026-10-14 00:27 UTC
+(`bin/rails twelve_data:acceptance` and `bin/rails twelve_data:report` on the
+worker). Gate: pass. `m00-acceptance-current.json` holds the same run; its quota
+total is null because the task does not print it. No prices, response bodies or
+credentials appear here.
+
+| Check | Result |
+| --- | --- |
+| History windows | Pass: every pair/interval has a valid history window |
+| Revision check | Pass: every window repeated with zero fingerprint mismatches |
+| Live hours | Pass: 48 of 48 cumulative live trading hours |
+| Live reproducibility | Pass: every pair/interval reproduced live closes, zero mismatches |
+| Live freshness | Pass: every pair/interval covers its latest expected trading close |
+| Quota | Pass: peak 7 per minute and 240 per UTC day, within 7 and 720 |
+| Retention | Pass: owner decision recorded 2026-10-11 |
+
+### Live matrix
+
+Live requests since the 2026-10-11 21:00 UTC reopen, per pair and interval.
+Reproduced counts are cumulative overlapping closes that matched a stored
+fingerprint. Freshness is the latest successful result's age in seconds for the
+2026-10-14 00:00 UTC close, which is both an H1 and an H4 close. H4 requests ran
+in the first minute after the grace and H1 requests in the next, because the
+seven-request minute budget cannot fit fourteen requests at once.
+
+| Pair | Interval | Requests | Success | Failures | Reproduced | Mismatches | Invalid candles | Freshness (s) |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| EUR/USD | H1 | 53 | 50 | 3 transport | 282 | 0 | 0 | 123 |
+| EUR/USD | H4 | 15 | 12 | 3 transport | 52 | 0 | 0 | 60 |
+| GBP/USD | H1 | 54 | 48 | 6 transport | 271 | 0 | 0 | 122 |
+| GBP/USD | H4 | 15 | 12 | 3 transport | 52 | 0 | 0 | 61 |
+| USD/JPY | H1 | 54 | 48 | 6 transport | 271 | 0 | 0 | 122 |
+| USD/JPY | H4 | 15 | 12 | 3 transport | 52 | 0 | 0 | 61 |
+| USD/CHF | H1 | 53 | 48 | 5 transport | 271 | 0 | 0 | 123 |
+| USD/CHF | H4 | 15 | 12 | 3 transport | 52 | 0 | 0 | 62 |
+| USD/CAD | H1 | 51 | 48 | 3 transport | 271 | 0 | 0 | 120 |
+| USD/CAD | H4 | 15 | 12 | 3 transport | 52 | 0 | 0 | 62 |
+| AUD/USD | H1 | 52 | 48 | 3 transport, 1 timeout | 271 | 0 | 0 | 121 |
+| AUD/USD | H4 | 15 | 12 | 3 transport | 52 | 0 | 0 | 62 |
+| NZD/USD | H1 | 51 | 48 | 3 transport | 271 | 0 | 0 | 121 |
+| NZD/USD | H4 | 15 | 12 | 3 transport | 52 | 0 | 0 | 63 |
+
+Totals: 473 live time_series requests, 422 successful and 51 failed (50
+transport errors, 1 timeout). No failure occurred after the 2026-10-13 22:16
+UTC interim snapshot. Every failure was followed by a successful request for the
+same pair/interval, and the latest result for every combination is valid with
+no gaps, duplicates, closures or invalid candles. No 429, HTTP 5xx or
+invalid-data response was recorded live. Failed attempts carry no credit
+headers, so their cost is unknown.
+
+### Historical depth
+
+Latest 5000-candle history windows, repeated for the revision check:
+
+| Measure | H1 (all seven pairs) | H4 (all seven pairs) |
+| --- | --- | --- |
+| Provider earliest timestamp | 2020-01-29 to 2020-01-30 | 2020-01-29 to 2020-01-30 |
+| Window starts | 2026-03-17 | 2023-11-23 to 2023-11-30 |
+| Window span | 206.4 to 206.5 days | 1044.5 to 1051.8 days |
+| Trading candles | 3561 to 3564 | 4440 to 4469 |
+| Missing trading slots | 0 | 41 to 51 |
+| Duplicates / fingerprint mismatches | 0 / 0 | 0 / 0 |
+
+EUR/USD H4 now passes under the owner's drop rule: its three OHLC-inconsistent
+candles are counted as invalid and appear among its 51 missing slots. The other
+H4 gaps match the holiday and provider-history gaps described under Historical
+depth update.
+
+### Credits and headroom
+
+The local budget is 7 per minute and 720 per UTC day, below the confirmed
+Basic 8 limits of 8 and 800. The highest day used 240 requests (33% of the
+local budget) and the busiest minute used 7, the full minute budget. Minute
+headroom is therefore one credit against the plan limit. Steady-state
+collection makes 7 H1 requests at each hourly close plus 7 H4 requests every
+four hours, about 210 per trading day.
+
+### Live and fixture evidence
+
+Observed live: all seven pairs at H1 and H4, closed-candle reproducibility,
+freshness at the 60-second publication grace, transport errors and one timeout
+followed by successful requests, and quota within budget.
+
+Proven by fixtures only (RSpec, no provider credits): 429 responses and
+Retry-After handling, HTTP 5xx retries, quota pauses and daily budget
+resumption, concurrent reservations, malformed bodies, contradicting candles
+and weekend-only responses. These failures were not provoked live because doing
+so would spend credits or depend on provider faults.
+
+### Late publication (F-10)
+
+A read-only query on the worker at 2026-10-13 22:26 UTC grouped every live
+time_series quality metric since the reopen by interval and status: 324 H1 and
+77 H4 evaluations, all valid, with no stale, gaps, closed or unreproducible
+result. The 51 failed requests have no quality metric. The latest H1 result for
+all seven pairs covered its expected close at 61 to 64 seconds, inside the
+first collection after the 60-second grace. The one-candle delay described in
+F-10 has therefore not occurred in the live window.
+
+The final run at 2026-10-14 00:27 UTC adds no failed requests, and the latest
+result for all fourteen combinations is valid and covers the 00:00 UTC close
+within 60 to 123 seconds. That run reports request outcomes and the latest
+quality result only, so the per-status grouping above was not repeated for the
+last two hours.
+
+### After the window
+
+The live weekend closure observation begins at the Friday 2026-10-16 21:00 UTC
+close under the New York 17:00 rule. It does not block progression; a failure
+reopens M00.
