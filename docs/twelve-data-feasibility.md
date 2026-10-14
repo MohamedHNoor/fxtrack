@@ -57,10 +57,11 @@ Resolved (details in the sections named):
 - History windows and the repeated-fetch revision check: Acceptance report.
 - Measured credits, headroom and retry/timeout outcomes: Acceptance report.
 - Quote and spread limitations: Quote and spread measurement.
+- At least 48 cumulative live trading hours: Acceptance report (48 of 48 at
+  2026-10-14 00:27 UTC).
 
 Still open:
 
-- At least 48 cumulative live trading hours (46 at 2026-10-13 22:16 UTC).
 - The live weekend closure observation. It follows the window, does not block
   progression and reopens M00 if it fails.
 - Other consumers of the key cannot be ruled out by this application. The
@@ -115,8 +116,9 @@ Each explicit probe runs a single pair/interval, requests eight observations wit
 explicit UTC and ascending ordering, and stores only sanitized metrics. Use only
 1h or 4h and one of the seven supported symbols. The client uses the documented
 Authorization header, never a credential in the URL. Missing credentials fail
-without printing the value. A failure exits nonzero. Report always declares the
-acceptance gate pending; request counts do not imply seven days of usable data.
+without printing the value. A failure exits nonzero. The report prints the
+acceptance gate from `TwelveData::Acceptance`; request counts alone do not prove
+the gate.
 
 The diagnostic quota policy uses 7 requests/credits per minute and 720 per UTC
 day, retaining one minute credit and 80 daily credits below the confirmed Basic
@@ -135,8 +137,9 @@ and 10-second read timeouts. HTTP internal retries are disabled. Timeout,
 transport failures, 429 and HTTP 5xx can retry with bounded backoff. Numeric
 Retry-After above 60 seconds causes a stop, not a long sleeping process.
 Unknown or nonnumeric credit headers remain nil. Provider response bodies,
-prices and exception messages are not persisted in metrics. No candle price
-table exists while storage rights are unresolved.
+prices and exception messages are not persisted in metrics. Validated closed
+candles are stored in `candles` under the 2026-10-11 owner retention decision
+(see `docs/market-data.md`, Candle storage).
 
 ## Outstanding implementation and observation gates
 
@@ -434,8 +437,8 @@ timeframe, fxtrack would be out of compliance until it adopts that limit. The
 owner accepts this risk. Re-check the Terms and support articles whenever
 storage behaviour changes, and adopt any published timeframe immediately.
 
-This resolves the M00 rights review. M00 itself stores no candle prices;
-persistence arrives with the milestones that need it, under this decision.
+This resolves the M00 rights review. Candle storage is now active under this
+decision, and `bin/rails twelve_data:delete_candles` is the deletion task.
 
 Check progress against this gate with `bin/rails twelve_data:acceptance`. It
 prints each criterion as passed or pending, then one line per pair/interval
